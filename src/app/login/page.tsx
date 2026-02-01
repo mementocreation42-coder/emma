@@ -24,7 +24,10 @@ export default function LoginPage() {
     const [state, formAction] = useActionState(login, { error: "" });
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-[#FDFBF7] text-zinc-800">
+        <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#FDFBF7] text-zinc-800 overflow-hidden">
+            {/* Vignette Overlay */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_20%,rgba(0,0,0,0.08)_100%)]" />
+
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
