@@ -1,13 +1,15 @@
 export const dynamic = 'force-dynamic';
 
 export default async function DebugPage() {
-    const wpUrl = process.env.WORDPRESS_API_URL || "https://memory.emma-kobayashi.com/wp-json/wp/v2/posts?per_page=1";
+    const wpUrl = "https://memory.emma-kobayashi.com/wp-json/wp/v2/posts?per_page=100&_embed";
     let debugInfo = {
         url: wpUrl,
         status: 0,
         statusText: "",
         headers: {} as Record<string, string>,
-        bodyPreview: "",
+        rawCount: 0,
+        filteredCount: 0,
+        filteredReason: [] as string[],
         error: "",
     };
 
@@ -26,8 +28,27 @@ export default async function DebugPage() {
             debugInfo.headers[key] = val;
         });
 
-        const text = await res.text();
-        debugInfo.bodyPreview = text.substring(0, 500);
+        if (res.ok) {
+            const posts = await res.json();
+            debugInfo.rawCount = posts.length;
+
+            // Simulate filtering logic
+            const validPosts = posts.filter((post: any) => {
+                const featuredMedia = post._embedded?.["wp:featuredmedia"]?.[0];
+                const content = post.content?.rendered || "";
+                const hasImgTag = /<img[^>]+src="([^"]+)"/i.test(content);
+                const hasVideo = /<video[^>]+src="([^"]+)"/i.test(content);
+
+                const hasMedia = featuredMedia || hasImgTag || hasVideo;
+
+                if (!hasMedia) {
+                    debugInfo.filteredReason.push(`Post ID ${post.id} "${post.title.rendered}": No featured media or content images`);
+                }
+                return hasMedia;
+            });
+
+            debugInfo.filteredCount = validPosts.length;
+        }
 
     } catch (e: any) {
         debugInfo.error = e.message;
@@ -35,33 +56,31 @@ export default async function DebugPage() {
 
     return (
         <div className="p-8 font-mono text-sm">
-            <h1 className="text-xl font-bold mb-4">WordPress Connection Debug</h1>
+            <h1 className="text-xl font-bold mb-4">WordPress Content Debug</h1>
 
             <div className="space-y-4">
-                <div className="bg-gray-100 p-4 rounded">
-                    <h2 className="font-bold">Request Info</h2>
-                    <p>URL: {debugInfo.url}</p>
-                </div>
-
                 <div className={`p-4 rounded ${debugInfo.status === 200 ? 'bg-green-100' : 'bg-red-100'}`}>
-                    <h2 className="font-bold">Response Status</h2>
+                    <h2 className="font-bold">Fetch Status</h2>
                     <p>{debugInfo.status} {debugInfo.statusText}</p>
                     {debugInfo.error && <p className="text-red-600">Error: {debugInfo.error}</p>}
                 </div>
 
-                <div className="bg-gray-100 p-4 rounded">
-                    <h2 className="font-bold mb-2">Response Headers</h2>
-                    <pre className="whitespace-pre-wrap break-all">
-                        {JSON.stringify(debugInfo.headers, null, 2)}
-                    </pre>
+                <div className="bg-blue-50 p-4 rounded">
+                    <h2 className="font-bold">Content Analysis</h2>
+                    <p>Total Posts Fetched: <strong>{debugInfo.rawCount}</strong></p>
+                    <p>Posts with Media (Visible): <strong>{debugInfo.filteredCount}</strong></p>
                 </div>
 
-                <div className="bg-gray-100 p-4 rounded">
-                    <h2 className="font-bold mb-2">Body Preview</h2>
-                    <pre className="whitespace-pre-wrap break-all bg-white p-2 border">
-                        {debugInfo.bodyPreview}
-                    </pre>
-                </div>
+                {debugInfo.filteredReason.length > 0 && (
+                    <div className="bg-orange-50 p-4 rounded">
+                        <h2 className="font-bold mb-2">Hidden Posts (No Media)</h2>
+                        <ul className="list-disc pl-5 space-y-1 text-xs">
+                            {debugInfo.filteredReason.map((reason, i) => (
+                                <li key={i}>{reason}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
         </div>
     );
