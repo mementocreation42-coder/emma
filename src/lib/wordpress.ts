@@ -47,6 +47,10 @@ export async function fetchWordPressPosts(perPage: number = 100): Promise<WordPr
     try {
         const response = await fetch(url, {
             next: { revalidate: 60 }, // Revalidate every 60 seconds
+            headers: {
+                "User-Agent": "NextJS-App/1.0",
+                "Accept": "application/json",
+            },
         });
 
         if (!response.ok) {
