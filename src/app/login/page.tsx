@@ -1,33 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { motion } from "framer-motion";
+import { login } from "./actions";
+
+// Submit Button Component to handle pending state
+function SubmitButton() {
+    const { pending } = useFormStatus();
+
+    return (
+        <button
+            type="submit"
+            disabled={pending}
+            className="w-full py-3 text-xs font-medium tracking-widest text-white bg-zinc-900 rounded-full hover:bg-zinc-700 transition-colors disabled:opacity-50"
+        >
+            {pending ? "UNLOCKING..." : "ENTER"}
+        </button>
+    );
+}
 
 export default function LoginPage() {
-    const router = useRouter();
-    const [error, setError] = useState("");
-    const [isPending, setIsPending] = useState(false); // Simulate pending state
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setIsPending(true);
-        setError(""); // Clear previous errors
-
-        const formData = new FormData(e.currentTarget);
-        const password = formData.get("password");
-
-        // Simulate a network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        if (password === "0531") {
-            document.cookie = "auth=true; path=/";
-            router.push("/");
-        } else {
-            setError("ACCESS DENIED");
-        }
-        setIsPending(false);
-    };
+    const [state, formAction] = useActionState(login, { error: "" });
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#FDFBF7] text-zinc-800">
@@ -46,7 +40,7 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form action={formAction} className="space-y-6">
                     <div className="relative">
                         <input
                             type="password"
@@ -58,21 +52,15 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="w-full py-3 text-xs font-medium tracking-widest text-white bg-zinc-900 rounded-full hover:bg-zinc-700 transition-colors disabled:opacity-50"
-                    >
-                        {isPending ? "UNLOCKING..." : "ENTER"}
-                    </button>
+                    <SubmitButton />
 
-                    {error && (
+                    {state?.error && (
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className="text-center text-xs text-red-400 font-medium tracking-wide mt-4"
                         >
-                            {error}
+                            {state.error}
                         </motion.p>
                     )}
                 </form>
