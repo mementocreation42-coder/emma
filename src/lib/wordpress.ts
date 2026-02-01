@@ -17,6 +17,22 @@ export interface WordPressPost {
         rendered: string;
     };
     featured_media: number;
+    acf?: { // Advanced Custom Fields
+        media_type?: string;
+        wp_image?: number | string; // Can be ID or sometimes object depending on config, usually ID
+        transcription?: string;
+        // Supports up to 10 gallery images
+        gallery_image_1?: number | string;
+        gallery_image_2?: number | string;
+        gallery_image_3?: number | string;
+        gallery_image_4?: number | string;
+        gallery_image_5?: number | string;
+        gallery_image_6?: number | string;
+        gallery_image_7?: number | string;
+        gallery_image_8?: number | string;
+        gallery_image_9?: number | string;
+        gallery_image_10?: number | string;
+    };
     _embedded?: {
         "wp:featuredmedia"?: WordPressMedia[];
     };
@@ -67,117 +83,165 @@ export async function fetchWordPressPosts(perPage: number = 100): Promise<WordPr
 }
 
 /**
- * Fetch a single media item by ID
+ * Batch fetch media items by IDs
+ * Used to resolve ACF image IDs to URLs
  */
-export async function fetchWordPressMedia(mediaId: number): Promise<WordPressMedia | null> {
-    if (!mediaId) return null;
+export async function fetchMediaBatch(mediaIds: number[]): Promise<Map<number, WordPressMedia>> {
+    if (mediaIds.length === 0) return new Map();
 
-    const url = `${WP_API_URL}/media/${mediaId}`;
+    // Deduplicate IDs
+    const uniqueIds = Array.from(new Set(mediaIds));
+    const mediaMap = new Map<number, WordPressMedia>();
 
-    try {
-        const response = await fetch(url, {
-            next: { revalidate: 3600 }, // Cache for 1 hour
-        });
+    // Optimization: If IDs list is too long, we might need to chunk it, 
+    // but typically WP API handles ~50-100 items depending on server config.
+    // Let's create chunks of 20 to be safe.
+    const chunkSize = 20;
 
-        if (!response.ok) {
-            return null;
+    for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+        const chunk = uniqueIds.slice(i, i + chunkSize);
+        const url = `${WP_API_URL}/media?include=${chunk.join(',')}&per_page=100`;
+
+        try {
+            const response = await fetch(url, {
+                next: { revalidate: 3600 },
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                }
+            });
+
+            if (response.ok) {
+                const mediaItems: WordPressMedia[] = await response.json();
+                mediaItems.forEach(item => {
+                    mediaMap.set(item.id, item);
+                });
+            }
+        } catch (error) {
+            console.error(`Failed to fetch media chunk ${chunk}:`, error);
         }
-
-        return await response.json();
-    } catch (error) {
-        console.error(`Failed to fetch media ${mediaId}:`, error);
-        return null;
-    }
-}
-
-/**
- * Extract images from WordPress post content (gallery blocks, image blocks)
- */
-function extractGalleryImages(content: string): Array<{ src: string; aspectRatio: number }> {
-    const images: Array<{ src: string; aspectRatio: number }> = [];
-
-    // Match img tags in the content
-    const imgRegex = /<img[^>]+src="([^"]+)"[^>]*(?:width="(\d+)")?[^>]*(?:height="(\d+)")?[^>]*>/gi;
-    let match;
-
-    while ((match = imgRegex.exec(content)) !== null) {
-        const src = match[1];
-        const width = match[2] ? parseInt(match[2]) : 16;
-        const height = match[3] ? parseInt(match[3]) : 9;
-
-        // Skip if it's an emoji or icon
-        if (src.includes("emoji") || src.includes("icon")) continue;
-
-        images.push({
-            src,
-            aspectRatio: width / height,
-        });
     }
 
-    return images;
-}
-
-/**
- * Determine if content contains video
- */
-function extractVideoFromContent(content: string): string | null {
-    // Match video URLs (mp4, webm, etc.)
-    const videoRegex = /<video[^>]+src="([^"]+)"/i;
-    const match = videoRegex.exec(content);
-    return match ? match[1] : null;
+    return mediaMap;
 }
 
 /**
  * Convert WordPress posts to MediaItem format
+ * Resolves ACF media IDs first
  */
-export function convertToMediaItems(posts: WordPressPost[]): MediaItem[] {
-    return posts.map((post) => {
-        const featuredMedia = post._embedded?.["wp:featuredmedia"]?.[0];
-        const galleryImages = extractGalleryImages(post.content.rendered);
-        const videoSrc = extractVideoFromContent(post.content.rendered);
+export async function convertToMediaItems(posts: WordPressPost[]): Promise<MediaItem[]> {
+    // 1. Collect all Media IDs from ACFs
+    const mediaIdsToFetch: number[] = [];
 
-        // Determine media type
-        const isVideo = videoSrc !== null || featuredMedia?.mime_type?.startsWith("video/");
-        const type: "image" | "video" = isVideo ? "video" : "image";
+    posts.forEach(post => {
+        if (!post.acf) return;
 
-        // Get the main image source
-        let src = "";
-        let aspectRatio = 16 / 9; // Default aspect ratio
-
-        if (featuredMedia) {
-            src = featuredMedia.source_url;
-            if (featuredMedia.media_details.width && featuredMedia.media_details.height) {
-                aspectRatio = featuredMedia.media_details.width / featuredMedia.media_details.height;
-            }
-        } else if (galleryImages.length > 0) {
-            src = galleryImages[0].src;
-            aspectRatio = galleryImages[0].aspectRatio;
+        // Collect wp_image
+        if (post.acf.wp_image && typeof post.acf.wp_image === 'number') {
+            mediaIdsToFetch.push(post.acf.wp_image);
         }
 
-        // Build gallery array if there are multiple images
-        const gallery = galleryImages.length > 1
-            ? galleryImages.map((img) => ({
-                src: img.src,
-                type: "image" as const,
-                aspectRatio: img.aspectRatio,
-            }))
-            : undefined;
+        // Collect gallery images 1-10
+        for (let i = 1; i <= 10; i++) {
+            const key = `gallery_image_${i}` as keyof typeof post.acf;
+            const val = post.acf[key];
+            if (val && typeof val === 'number') {
+                mediaIdsToFetch.push(val);
+            }
+        }
+    });
 
-        // Extract plain text description from excerpt
-        const description = post.excerpt.rendered
-            .replace(/<[^>]*>/g, "") // Remove HTML tags
+    // 2. Batch fetch missing media details
+    const mediaMap = await fetchMediaBatch(mediaIdsToFetch);
+
+    // 3. Map posts to MediaItems
+    const convertedItems = posts.map((post) => {
+        // --- Strategy to find the main image ---
+        let mainImageSrc = "";
+        let mainAspectRatio = 16 / 9;
+
+        // Priority 1: ACF Main Image (wp_image)
+        if (post.acf?.wp_image && typeof post.acf.wp_image === 'number') {
+            const media = mediaMap.get(post.acf.wp_image);
+            if (media) {
+                mainImageSrc = media.source_url;
+                if (media.media_details.width && media.media_details.height) {
+                    mainAspectRatio = media.media_details.width / media.media_details.height;
+                }
+            }
+        }
+
+        // Priority 2: Standard Featured Media (if ACF failed or missing)
+        if (!mainImageSrc) {
+            const featuredMedia = post._embedded?.["wp:featuredmedia"]?.[0];
+            if (featuredMedia) {
+                mainImageSrc = featuredMedia.source_url;
+                if (featuredMedia.media_details.width && featuredMedia.media_details.height) {
+                    mainAspectRatio = featuredMedia.media_details.width / featuredMedia.media_details.height;
+                }
+            }
+        }
+
+        // Ignore content images if we are using ACF strict mode, 
+        // but can fallback if nothing found. Let's keep it safe.
+
+        // --- Prepare Gallery ---
+        let gallery: Array<{ src: string; type: 'image' | 'video'; aspectRatio: number }> = [];
+
+        if (post.acf) {
+            for (let i = 1; i <= 10; i++) {
+                const key = `gallery_image_${i}` as keyof typeof post.acf;
+                const val = post.acf[key];
+                if (val && typeof val === 'number') {
+                    const media = mediaMap.get(val);
+                    if (media) {
+                        gallery.push({
+                            src: media.source_url,
+                            type: 'image',
+                            aspectRatio: media.media_details.width && media.media_details.height
+                                ? media.media_details.width / media.media_details.height
+                                : 16 / 9,
+                        });
+                    }
+                }
+            }
+        }
+
+        // If ACF gallery is empty, fallback to Featured Media if used as main but not in ACF
+        if (gallery.length === 0 && mainImageSrc) {
+            // If no gallery, maybe the main image is the gallery? 
+            // Logic in GalleryItem component handles single items fine.
+        }
+
+        // If we found a main image from ACF but gallery array is empty,
+        // we might want to put the main image INTO the gallery array 
+        // if the design expects it. 
+        // Current logic: 'gallery' prop is optional.
+
+        // --- Determine Type ---
+        const isVideo = post.acf?.media_type === 'video';
+
+        // Extract plain text description from excerpt or ACF transcription
+        let description = post.acf?.transcription || post.excerpt.rendered
+            .replace(/<[^>]*>/g, "")
             .replace(/&nbsp;/g, " ")
             .trim();
 
+        if (!mainImageSrc && gallery.length > 0) {
+            mainImageSrc = gallery[0].src;
+            mainAspectRatio = gallery[0].aspectRatio;
+        }
+
         return {
             id: post.id.toString(),
-            type,
-            src: videoSrc || src,
-            aspectRatio,
+            type: (isVideo ? 'video' : 'image') as 'video' | 'image',
+            src: mainImageSrc,
+            aspectRatio: mainAspectRatio,
             alt: post.title.rendered.replace(/<[^>]*>/g, ""),
-            date: post.date.split("T")[0], // YYYY-MM-DD format
+            date: post.date.split("T")[0],
             description: description || undefined,
-            gallery,
+            gallery: gallery.length > 1 ? gallery : undefined,
         };
     }).filter((item) => item.src); // Filter out items without a source
+
+    return convertedItems;
 }

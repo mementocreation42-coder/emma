@@ -12,7 +12,7 @@ export async function getPosts(): Promise<MediaItem[]> {
 
         if (wpPosts.length > 0) {
             console.log("📡 Fetched from WordPress:", wpPosts.length, "posts");
-            return convertToMediaItems(wpPosts);
+            return await convertToMediaItems(wpPosts);
         }
 
         // Fall back to mock data if no posts returned
