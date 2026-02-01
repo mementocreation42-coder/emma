@@ -33,6 +33,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${notoSerifJP.variable} antialiased`}
       >
+        <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.15] mix-blend-overlay" style={{
+          backgroundImage: `url('/noise.svg')`,
+          filter: 'contrast(120%) brightness(120%)'
+        }} />
         {children}
       </body>
     </html>
