@@ -10,7 +10,10 @@ export default async function Home() {
   const posts = await getPosts();
 
   return (
-    <div className="flex min-h-screen flex-col font-sans">
+    <div className="relative flex min-h-screen flex-col font-sans">
+      {/* Vignette Overlay - Fixed to viewport */}
+      <div className="fixed inset-0 pointer-events-none z-50 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(0,0,0,0.08)_100%)]" />
+
       <main className="flex-1">
         <Hero />
         <GalleryContainer initialItems={posts} />
