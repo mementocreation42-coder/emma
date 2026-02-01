@@ -20,6 +20,7 @@ export interface WordPressPost {
     acf?: { // Advanced Custom Fields
         media_type?: string;
         wp_image?: number | string; // Can be ID or sometimes object depending on config, usually ID
+        cloudinary_id?: string; // Cloudinary Public ID
         transcription?: string;
         // Supports up to 10 gallery images
         gallery_image_1?: number | string;
@@ -159,8 +160,16 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
         let mainImageSrc = "";
         let mainAspectRatio = 16 / 9;
 
+        // Priority 0: Cloudinary ID (Video/Image)
+        if (post.acf?.cloudinary_id) {
+            mainImageSrc = post.acf.cloudinary_id;
+            // If it's a Cloudinary ID, we assume it's a video if media_type says so, or we can default to video 
+            // if we want to force Cloudinary IDs to be treated as videos (based on user request)
+            // But let's respect media_type if possible.
+        }
+
         // Priority 1: ACF Main Image (wp_image)
-        if (post.acf?.wp_image && typeof post.acf.wp_image === 'number') {
+        if (!mainImageSrc && post.acf?.wp_image && typeof post.acf.wp_image === 'number') {
             const media = mediaMap.get(post.acf.wp_image);
             if (media) {
                 mainImageSrc = media.source_url;
@@ -188,6 +197,15 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
         let gallery: Array<{ src: string; type: 'image' | 'video'; aspectRatio: number }> = [];
 
         if (post.acf) {
+            // Add main video/image to gallery first if it is Cloudinary
+            if (post.acf.cloudinary_id) {
+                gallery.push({
+                    src: post.acf.cloudinary_id,
+                    type: post.acf.media_type === 'video' ? 'video' : 'image', // Default to image if not specified? Or user said "Video is Cloudinary ID"
+                    aspectRatio: 16 / 9, // Default for Cloudinary since we don't have dimensions
+                });
+            }
+
             for (let i = 1; i <= 10; i++) {
                 const key = `gallery_image_${i}` as keyof typeof post.acf;
                 const val = post.acf[key];
@@ -218,7 +236,8 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
         // Current logic: 'gallery' prop is optional.
 
         // --- Determine Type ---
-        const isVideo = post.acf?.media_type === 'video';
+        // If we have a cloudinary_id, check media_type or assume video if specifically asked
+        const isVideo = post.acf?.media_type === 'video' || (!!post.acf?.cloudinary_id && post.acf?.media_type !== 'image');
 
         // Extract plain text description from excerpt or ACF transcription
         let description = post.acf?.transcription || post.excerpt.rendered
