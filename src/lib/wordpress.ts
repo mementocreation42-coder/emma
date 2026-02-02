@@ -17,6 +17,11 @@ export interface WordPressPost {
         rendered: string;
     };
     featured_media: number;
+    acf?: {
+        media_type?: string; // 'image' or 'video'
+        cloudinary_id?: string; // Cloudinary Public ID for videos
+        transcription?: string; // Optional description
+    };
     _embedded?: {
         "wp:featuredmedia"?: WordPressMedia[];
     };
@@ -132,20 +137,31 @@ export function convertToMediaItems(posts: WordPressPost[]): MediaItem[] {
         const galleryImages = extractGalleryImages(post.content.rendered);
         const videoSrc = extractVideoFromContent(post.content.rendered);
 
-        // Determine media type
-        const isVideo = videoSrc !== null || featuredMedia?.mime_type?.startsWith("video/");
+        // Check for Cloudinary video from ACF
+        const cloudinaryId = post.acf?.cloudinary_id;
+        const acfMediaType = post.acf?.media_type;
+
+        // Determine media type (Cloudinary video takes priority)
+        const isVideo = !!cloudinaryId || acfMediaType === 'video' || videoSrc !== null || featuredMedia?.mime_type?.startsWith("video/");
         const type: "image" | "video" = isVideo ? "video" : "image";
 
-        // Get the main image source
+        // Get the main image/video source
         let src = "";
         let aspectRatio = 16 / 9; // Default aspect ratio
 
-        if (featuredMedia) {
+        // Priority 1: Cloudinary ID (for videos)
+        if (cloudinaryId) {
+            src = cloudinaryId; // Cloudinary component will handle the full URL
+        }
+        // Priority 2: Featured Media
+        else if (featuredMedia) {
             src = featuredMedia.source_url;
             if (featuredMedia.media_details.width && featuredMedia.media_details.height) {
                 aspectRatio = featuredMedia.media_details.width / featuredMedia.media_details.height;
             }
-        } else if (galleryImages.length > 0) {
+        }
+        // Priority 3: Gallery Images
+        else if (galleryImages.length > 0) {
             src = galleryImages[0].src;
             aspectRatio = galleryImages[0].aspectRatio;
         }
@@ -159,8 +175,8 @@ export function convertToMediaItems(posts: WordPressPost[]): MediaItem[] {
             }))
             : undefined;
 
-        // Extract plain text description from excerpt
-        const description = post.excerpt.rendered
+        // Extract plain text description from ACF transcription or excerpt
+        const description = post.acf?.transcription || post.excerpt.rendered
             .replace(/<[^>]*>/g, "") // Remove HTML tags
             .replace(/&nbsp;/g, " ")
             .trim();
