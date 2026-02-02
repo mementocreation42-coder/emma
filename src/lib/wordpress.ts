@@ -130,36 +130,56 @@ export async function fetchMediaBatch(mediaIds: number[]): Promise<Map<number, W
 }
 
 /**
+ * Extract image IDs from WordPress post content HTML
+ * Parses wp-image-{ID} classes from gallery blocks and individual images
+ */
+function extractImageIdsFromContent(content: string): number[] {
+    const ids: number[] = [];
+    // Match wp-image-{ID} pattern from class attributes
+    const regex = /wp-image-(\d+)/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+        ids.push(parseInt(match[1], 10));
+    }
+    return ids;
+}
+
+/**
  * Convert WordPress posts to MediaItem format
  * Resolves ACF media IDs first
  */
 export async function convertToMediaItems(posts: WordPressPost[]): Promise<MediaItem[]> {
-    // 1. Collect all Media IDs from ACFs
+    // 1. Collect all Media IDs from ACFs and Content
     const mediaIdsToFetch: number[] = [];
 
     posts.forEach(post => {
-        if (!post.acf) return;
+        // Collect from ACF fields
+        if (post.acf) {
+            // Collect wp_image
+            if (post.acf.wp_image && typeof post.acf.wp_image === 'number') {
+                mediaIdsToFetch.push(post.acf.wp_image);
+            }
 
-        // Collect wp_image
-        if (post.acf.wp_image && typeof post.acf.wp_image === 'number') {
-            mediaIdsToFetch.push(post.acf.wp_image);
-        }
+            // Collect gallery images 1-10 (Legacy)
+            for (let i = 1; i <= 10; i++) {
+                const key = `gallery_image_${i}` as keyof typeof post.acf;
+                const val = post.acf[key];
+                if (val && typeof val === 'number') {
+                    mediaIdsToFetch.push(val);
+                }
+            }
 
-        // Collect gallery images 1-10 (Legacy)
-        for (let i = 1; i <= 10; i++) {
-            const key = `gallery_image_${i}` as keyof typeof post.acf;
-            const val = post.acf[key];
-            if (val && typeof val === 'number') {
-                mediaIdsToFetch.push(val);
+            // Collect new gallery field (Array)
+            if (post.acf.gallery_images && Array.isArray(post.acf.gallery_images)) {
+                post.acf.gallery_images.forEach(id => {
+                    if (typeof id === 'number') mediaIdsToFetch.push(id);
+                });
             }
         }
 
-        // Collect new gallery field (Array)
-        if (post.acf.gallery_images && Array.isArray(post.acf.gallery_images)) {
-            post.acf.gallery_images.forEach(id => {
-                if (typeof id === 'number') mediaIdsToFetch.push(id);
-            });
-        }
+        // Collect from post content (Gutenberg Gallery Block)
+        const contentIds = extractImageIdsFromContent(post.content.rendered);
+        mediaIdsToFetch.push(...contentIds);
     });
 
     // 2. Batch fetch missing media details
@@ -250,6 +270,24 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
                 });
             }
         }
+
+        // Handle images from post content (Gutenberg Gallery Block)
+        const contentIds = extractImageIdsFromContent(post.content.rendered);
+        contentIds.forEach(id => {
+            // Avoid duplicates (in case ACF and content have the same image)
+            if (!gallery.some(item => item.src === mediaMap.get(id)?.source_url)) {
+                const media = mediaMap.get(id);
+                if (media) {
+                    gallery.push({
+                        src: media.source_url,
+                        type: 'image',
+                        aspectRatio: media.media_details.width && media.media_details.height
+                            ? media.media_details.width / media.media_details.height
+                            : 16 / 9,
+                    });
+                }
+            }
+        });
 
         // If ACF gallery is empty, fallback to Featured Media if used as main but not in ACF
         if (gallery.length === 0 && mainImageSrc) {
