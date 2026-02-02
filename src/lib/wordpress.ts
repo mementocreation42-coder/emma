@@ -23,6 +23,7 @@ export interface WordPressPost {
         cloudinary_id?: string; // Cloudinary Public ID
         transcription?: string;
         // Supports up to 10 gallery images
+        // Deprecated: Supports up to 10 gallery images (Old Legacy)
         gallery_image_1?: number | string;
         gallery_image_2?: number | string;
         gallery_image_3?: number | string;
@@ -33,6 +34,9 @@ export interface WordPressPost {
         gallery_image_8?: number | string;
         gallery_image_9?: number | string;
         gallery_image_10?: number | string;
+
+        // New: Gallery Field (Array of IDs)
+        gallery_images?: number[];
     };
     _embedded?: {
         "wp:featuredmedia"?: WordPressMedia[];
@@ -141,13 +145,20 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
             mediaIdsToFetch.push(post.acf.wp_image);
         }
 
-        // Collect gallery images 1-10
+        // Collect gallery images 1-10 (Legacy)
         for (let i = 1; i <= 10; i++) {
             const key = `gallery_image_${i}` as keyof typeof post.acf;
             const val = post.acf[key];
             if (val && typeof val === 'number') {
                 mediaIdsToFetch.push(val);
             }
+        }
+
+        // Collect new gallery field (Array)
+        if (post.acf.gallery_images && Array.isArray(post.acf.gallery_images)) {
+            post.acf.gallery_images.forEach(id => {
+                if (typeof id === 'number') mediaIdsToFetch.push(id);
+            });
         }
     });
 
@@ -221,6 +232,22 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
                         });
                     }
                 }
+            }
+
+            // Handle new Gallery Field
+            if (post.acf.gallery_images && Array.isArray(post.acf.gallery_images)) {
+                post.acf.gallery_images.forEach(id => {
+                    const media = mediaMap.get(id);
+                    if (media) {
+                        gallery.push({
+                            src: media.source_url,
+                            type: 'image',
+                            aspectRatio: media.media_details.width && media.media_details.height
+                                ? media.media_details.width / media.media_details.height
+                                : 16 / 9,
+                        });
+                    }
+                });
             }
         }
 
