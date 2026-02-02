@@ -325,7 +325,16 @@ export async function convertToMediaItems(posts: WordPressPost[]): Promise<Media
             description: description || undefined,
             gallery: gallery.length > 1 ? gallery : undefined,
         };
-    }).filter((item) => item.src); // Filter out items without a source
+    });
 
-    return convertedItems;
+    // Debug logging
+    console.log("📊 Conversion results:");
+    convertedItems.forEach((item, i) => {
+        console.log(`  Post ${i + 1}: id=${item.id}, src=${item.src ? "✅" : "❌ MISSING"}, title="${item.alt}"`);
+    });
+
+    const filteredItems = convertedItems.filter((item) => item.src);
+    console.log(`📊 Total: ${convertedItems.length}, After filter: ${filteredItems.length}`);
+
+    return filteredItems;
 }
