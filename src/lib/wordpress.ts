@@ -94,26 +94,37 @@ export async function fetchWordPressMedia(mediaId: number): Promise<WordPressMed
 /**
  * Extract images from WordPress post content (gallery blocks, image blocks)
  */
+/**
+ * Extract images from WordPress post content (gallery blocks, image blocks)
+ */
 function extractGalleryImages(content: string): Array<{ src: string; aspectRatio: number }> {
     const images: Array<{ src: string; aspectRatio: number }> = [];
 
-    // Match img tags in the content
-    const imgRegex = /<img[^>]+src="([^"]+)"[^>]*(?:width="(\d+)")?[^>]*(?:height="(\d+)")?[^>]*>/gi;
-    let match;
+    // 1. Match all img tags first
+    const imgTagRegex = /<img[^>]+>/gi;
+    const imgTags = content.match(imgTagRegex) || [];
 
-    while ((match = imgRegex.exec(content)) !== null) {
-        const src = match[1];
-        const width = match[2] ? parseInt(match[2]) : 16;
-        const height = match[3] ? parseInt(match[3]) : 9;
+    imgTags.forEach(tag => {
+        // 2. Extract attributes individually from each tag
+        const srcMatch = /src=["']([^"']+)["']/i.exec(tag);
+        const widthMatch = /width=["'](\d+)["']/i.exec(tag);
+        const heightMatch = /height=["'](\d+)["']/i.exec(tag);
 
-        // Skip if it's an emoji or icon
-        if (src.includes("emoji") || src.includes("icon")) continue;
+        if (srcMatch) {
+            const src = srcMatch[1];
 
-        images.push({
-            src,
-            aspectRatio: width / height,
-        });
-    }
+            // Skip if it's an emoji or icon
+            if (src.includes("emoji") || src.includes("icon")) return;
+
+            const width = widthMatch ? parseInt(widthMatch[1]) : 16;
+            const height = heightMatch ? parseInt(heightMatch[1]) : 9;
+
+            images.push({
+                src,
+                aspectRatio: width / height,
+            });
+        }
+    });
 
     return images;
 }

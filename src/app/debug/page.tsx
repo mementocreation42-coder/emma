@@ -1,11 +1,13 @@
 export const dynamic = 'force-dynamic';
 
 export default async function DebugPage() {
-    const wpUrl = "https://memory.emma-kobayashi.com/wp-json/wp/v2/posts?per_page=5&_embed";
+    const wpUrl = "https://memory.emma-kobayashi.com/wp-json/wp/v2/posts?per_page=5&status=publish&_embed";
     let debugInfo = {
         url: wpUrl,
         status: 0,
         statusText: "",
+        rawCount: 0,
+        filteredCount: 0,
         rawFirstPost: null as any,
         error: "",
     };
@@ -23,8 +25,14 @@ export default async function DebugPage() {
 
         if (res.ok) {
             const posts = await res.json();
-            if (posts.length > 0) {
+            debugInfo.rawCount = Array.isArray(posts) ? posts.length : 0;
+
+            if (debugInfo.rawCount > 0) {
                 debugInfo.rawFirstPost = posts[0];
+                // Check how many pass the filter
+                const { convertToMediaItems } = await import("@/lib/wordpress");
+                const converted = convertToMediaItems(posts);
+                debugInfo.filteredCount = converted.length;
             }
         }
 
@@ -41,6 +49,18 @@ export default async function DebugPage() {
                     <h2 className="font-bold">Fetch Status</h2>
                     <p>{debugInfo.status} {debugInfo.statusText}</p>
                     {debugInfo.error && <p className="text-red-600">Error: {debugInfo.error}</p>}
+                </div>
+
+                <div className="bg-blue-100 p-4 rounded grid grid-cols-2 gap-4">
+                    <div>
+                        <h2 className="font-bold">Raw Count</h2>
+                        <p className="text-2xl">{debugInfo.rawCount}</p>
+                    </div>
+                    <div>
+                        <h2 className="font-bold">Filtered Count</h2>
+                        <p className="text-2xl">{debugInfo.filteredCount}</p>
+                        <p className="text-xs text-gray-500">Posts with valid images</p>
+                    </div>
                 </div>
 
                 <div className="bg-gray-100 p-4 rounded">
