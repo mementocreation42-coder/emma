@@ -167,7 +167,7 @@ export function convertToMediaItems(posts: WordPressPost[]): MediaItem[] {
         // Priority 2: Featured Media
         else if (featuredMedia) {
             src = featuredMedia.source_url;
-            if (featuredMedia.media_details.width && featuredMedia.media_details.height) {
+            if (featuredMedia.media_details?.width && featuredMedia.media_details?.height) {
                 aspectRatio = featuredMedia.media_details.width / featuredMedia.media_details.height;
             }
         }
