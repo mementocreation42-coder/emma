@@ -15,11 +15,11 @@ export async function getPosts(): Promise<MediaItem[]> {
             return await convertToMediaItems(wpPosts);
         }
 
-        // Fall back to mock data if no posts returned
-        console.log("⚠️ No WordPress posts found, using mock data");
-        return mockPosts;
+        // Return empty array if no posts returned (no fallback to mock data)
+        console.log("⚠️ No WordPress posts found");
+        return [];
     } catch (error) {
-        console.error("Failed to fetch from WordPress, using mock data:", error);
-        return mockPosts;
+        console.error("Failed to fetch from WordPress:", error);
+        return [];
     }
 }
