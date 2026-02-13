@@ -47,7 +47,7 @@ export interface WordPressMedia {
  * Fetch posts from WordPress REST API
  */
 export async function fetchWordPressPosts(perPage: number = 100): Promise<WordPressPost[]> {
-    const url = `${WP_API_URL}/posts?per_page=${perPage}&_embed`;
+    const url = `${WP_API_URL}/posts?per_page=${perPage}&status=publish&_embed`;
 
     try {
         const response = await fetch(url, {
