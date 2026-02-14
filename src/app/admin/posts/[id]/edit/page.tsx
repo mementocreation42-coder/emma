@@ -16,7 +16,7 @@ export default async function EditPostPage({ params }: PageProps) {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-100/80">
+        <div className="min-h-screen bg-zinc-200">
             <PostEditor initialData={post} />
         </div>
     )
