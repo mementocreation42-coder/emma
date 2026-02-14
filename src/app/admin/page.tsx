@@ -10,6 +10,12 @@ import { PostActions } from "@/components/admin/PostActions"
 // Force dynamic rendering to ensure the latest list is always fetched
 export const dynamic = 'force-dynamic'
 
+import { Metadata } from "next"
+
+export const metadata: Metadata = {
+    title: "ダッシュボード",
+}
+
 export default async function AdminDashboard() {
     const posts = await fetchWordPressPosts(100) // Fetch last 100 posts
 
