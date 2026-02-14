@@ -33,6 +33,7 @@ export interface WordPressPost {
         media_type?: string; // 'image' or 'video'
         cloudinary_id?: string; // Cloudinary Public ID for videos
         transcription?: string; // Optional description
+        wp_image?: number; // Image ID (Required by ACF)
     };
     _embedded?: {
         "wp:featuredmedia"?: WordPressMedia[];

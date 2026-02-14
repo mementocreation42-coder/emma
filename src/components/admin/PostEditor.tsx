@@ -95,7 +95,12 @@ export function PostEditor({ initialData }: PostEditorProps) {
       formData.append("title", values.title)
       formData.append("content", values.content || "")
       formData.append("mediaType", values.mediaType)
+      formData.append("mediaType", values.mediaType)
       if (values.cloudinaryId) formData.append("cloudinaryId", values.cloudinaryId)
+      // Pass existing wp_image ID if we are editing and have it
+      if (initialData?.acf?.wp_image) {
+        formData.append("wp_image", initialData.acf.wp_image.toString())
+      }
 
       // Append images with compression
       const compressionOptions = {

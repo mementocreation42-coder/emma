@@ -14,6 +14,7 @@ export async function POST(
         const content = formData.get("content") as string;
         const mediaType = formData.get("mediaType") as string;
         const cloudinaryId = formData.get("cloudinaryId") as string;
+        const existingWpImageId = formData.get("wp_image") as string;
 
         // Handle NEW images
         const images = formData.getAll("images") as File[];
@@ -62,6 +63,9 @@ export async function POST(
 
         if (featuredMediaId) {
             acf.wp_image = featuredMediaId;
+        } else if (existingWpImageId) {
+            // Keep existing image if no new one is uploaded
+            acf.wp_image = parseInt(existingWpImageId);
         }
 
         const updateData: any = {
