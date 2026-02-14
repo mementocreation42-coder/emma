@@ -97,11 +97,7 @@ export async function POST(request: NextRequest) {
         const acf = {
             media_type: mediaType,
             cloudinary_id: cloudinaryId,
-            // transcription: content // Map content to transcription if needed? 
-            // The current frontend uses `post.acf?.transcription || post.excerpt.rendered`.
-            // We'll leave transcription empty and let it fallback to exceprt (which is auto-generated from content usually)
-            // or we could map a separate field if we added one. 
-            // For now, let's put `content` in standard WP content.
+            wp_image: featuredMediaId, // Required field: Map the first uploaded image
         };
 
         const newPost = await createPost({
