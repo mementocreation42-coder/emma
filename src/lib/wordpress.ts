@@ -2,6 +2,18 @@ import { MediaItem } from "@/components/gallery/types";
 
 // WordPress API Configuration
 const WP_API_URL = process.env.WORDPRESS_API_URL || "https://memory.emma-kobayashi.com/wp-json/wp/v2";
+const WP_USER = process.env.WORDPRESS_APP_USERNAME;
+const WP_APP_PASSWORD = process.env.WORDPRESS_APP_PASSWORD;
+
+function getAuthHeaders() {
+    if (!WP_USER || !WP_APP_PASSWORD) {
+        throw new Error("WordPress credentials not configured");
+    }
+    const token = btoa(`${WP_USER}:${WP_APP_PASSWORD}`);
+    return {
+        "Authorization": `Basic ${token}`,
+    };
+}
 
 // WordPress API Response Types
 export interface WordPressPost {
@@ -88,6 +100,74 @@ export async function fetchWordPressMedia(mediaId: number): Promise<WordPressMed
     } catch (error) {
         console.error(`Failed to fetch media ${mediaId}:`, error);
         return null;
+    }
+}
+
+/**
+ * Upload a media file to WordPress
+ */
+export async function uploadMedia(file: File | Blob, title: string): Promise<WordPressMedia | null> {
+    const url = `${WP_API_URL}/media`;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    // formData.append('caption', title); 
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`WordPress Upload Error: ${response.status}`, errorText);
+            throw new Error(`Failed to upload media: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to upload media:", error);
+        throw error;
+    }
+}
+
+/**
+ * Create a new Post
+ */
+export async function createPost(postData: {
+    title: string;
+    content: string;
+    status: 'publish' | 'draft';
+    featured_media?: number;
+    acf?: Record<string, any>;
+}): Promise<WordPressPost> {
+    const url = `${WP_API_URL}/posts`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify(postData),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`WordPress Create Post Error: ${response.status}`, errorText);
+            throw new Error(`Failed to create post: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to create post:", error);
+        throw error;
     }
 }
 
