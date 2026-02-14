@@ -93,6 +93,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                             drag="x"
                             dragConstraints={{ left: 0, right: 0 }}
                             dragElastic={0.2}
+                            style={{ touchAction: "pan-y" }} // Prevent vertical scroll from interfering with swipe
                             onDragEnd={(e, { offset, velocity }) => {
                                 const swipe = swipePower(offset.x, velocity.x);
                                 if (swipe < -swipeConfidenceThreshold) {
@@ -112,11 +113,11 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                             {/* Navigation Arrows */}
 
 
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] h-[80vh] md:h-[85vh] bg-zinc-900">
+                            <div className="flex flex-col md:grid md:grid-cols-[1fr_300px] h-[85vh] bg-zinc-900">
 
                                 {/* Visual Content Area */}
                                 <div
-                                    className="relative flex items-center justify-center bg-black h-full min-h-[50vh]"
+                                    className="relative flex-1 flex items-center justify-center bg-black w-full overflow-hidden" // flex-1 to fill space
                                     onWheel={handleWheel}
                                 >
                                     {/* Navigation Arrows (Inside Visual Area) */}
@@ -216,7 +217,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                 </div>
 
                                 {/* Text/Story Area */}
-                                <div className="flex flex-col justify-center p-8 text-white h-auto overflow-y-auto border-t md:border-t-0 md:border-l border-white/10">
+                                <div className="flex flex-col justify-center p-6 md:p-8 text-white h-auto max-h-[35vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900/50 backdrop-blur-sm z-10">
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
