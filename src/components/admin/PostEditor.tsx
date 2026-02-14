@@ -7,6 +7,7 @@ import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 // @ts-ignore
 import imageCompression from 'browser-image-compression';
+import ExifReader from 'exifreader';
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -35,6 +36,7 @@ import { Separator } from "@/components/ui/separator"
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
   content: z.string().optional(),
+  date: z.string().optional(), // ISO string for the post date
   mediaType: z.enum(["image", "video"]),
   cloudinaryId: z.string().optional(),
   images: z.array(z.any()).optional(), // Store file objects
@@ -60,20 +62,42 @@ export function PostEditor({ initialData }: PostEditorProps) {
     defaultValues: {
       title: initialData?.title.rendered || "",
       content: initialData?.content.rendered || "",
+      date: initialData?.date ? new Date(initialData.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
       mediaType: (initialData?.acf?.media_type as "image" | "video") || "image",
       cloudinaryId: initialData?.acf?.cloudinary_id || "",
       images: [],
     },
   })
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const newImages = acceptedFiles.map(file => ({
       id: Math.random().toString(36).substring(7),
       url: URL.createObjectURL(file),
       file
     }))
     setPreviewImages(prev => [...prev, ...newImages])
-  }, [])
+
+    // Auto-detect date from the first image if it's not already set by the user (or is default)
+    if (acceptedFiles.length > 0 && !initialData) {
+      try {
+        const tags = await ExifReader.load(acceptedFiles[0]);
+        // Check for DateTimeOriginal (standard for photos)
+        const dateOriginal = tags['DateTimeOriginal']?.description;
+        if (dateOriginal) {
+          // Format is usually "YYYY:MM:DD HH:MM:SS"
+          // Convert to ISO format "YYYY-MM-DDTHH:MM" for input type="datetime-local"
+          const [datePart, timePart] = dateOriginal.split(' ');
+          const isoDate = `${datePart.replace(/:/g, '-')}T${timePart.slice(0, 5)}`;
+
+          // Set the form value
+          form.setValue('date', isoDate);
+          console.log("Auto-detected date from Exif:", isoDate);
+        }
+      } catch (error) {
+        console.error("Failed to read Exif data:", error);
+      }
+    }
+  }, [form, initialData])
 
   const removeImage = (id: string) => {
     setPreviewImages(prev => prev.filter(img => img.id !== id))
@@ -94,7 +118,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
       const formData = new FormData()
       formData.append("title", values.title)
       formData.append("content", values.content || "")
-      formData.append("mediaType", values.mediaType)
+      if (values.date) formData.append("date", new Date(values.date).toISOString())
       formData.append("mediaType", values.mediaType)
       if (values.cloudinaryId) formData.append("cloudinaryId", values.cloudinaryId)
       // Pass existing wp_image ID if we are editing and have it
@@ -231,6 +255,23 @@ export function PostEditor({ initialData }: PostEditorProps) {
                       <FormControl>
                         <Input placeholder="Enter post title" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date & Time</FormLabel>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Defaults to now. Auto-filled from photo Exif data if detected.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -143,6 +143,7 @@ export async function uploadMedia(file: File | Blob, title: string): Promise<Wor
 export async function createPost(postData: {
     title: string;
     content: string;
+    date?: string;
     status: 'publish' | 'draft';
     featured_media?: number;
     acf?: Record<string, any>;
@@ -315,6 +316,7 @@ export async function fetchWordPressPost(id: number): Promise<WordPressPost | nu
 export async function updatePost(id: number, postData: {
     title?: string;
     content?: string;
+    date?: string;
     status?: 'publish' | 'draft';
     featured_media?: number;
     acf?: Record<string, any>;

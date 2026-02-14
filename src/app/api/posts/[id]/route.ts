@@ -12,6 +12,7 @@ export async function POST(
 
         const title = formData.get("title") as string;
         const content = formData.get("content") as string;
+        const date = formData.get("date") as string;
         const mediaType = formData.get("mediaType") as string;
         const cloudinaryId = formData.get("cloudinaryId") as string;
         const existingWpImageId = formData.get("wp_image") as string;
@@ -71,6 +72,7 @@ export async function POST(
         const updateData: any = {
             title,
             content: finalContent,
+            date,
             acf,
         };
 

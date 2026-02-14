@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
 
         const title = formData.get("title") as string;
         const content = formData.get("content") as string;
+        const date = formData.get("date") as string;
         const mediaType = formData.get("mediaType") as string;
         const cloudinaryId = formData.get("cloudinaryId") as string;
 
@@ -100,12 +101,14 @@ export async function POST(request: NextRequest) {
             wp_image: featuredMediaId, // Required field: Map the first uploaded image
         };
 
+        // Create Post in WordPress
         const newPost = await createPost({
             title,
             content: finalContent,
-            status: "publish", // Or make this configurable
+            date,
+            status: 'publish',
             featured_media: featuredMediaId,
-            acf,
+            acf: acf
         });
 
         return NextResponse.json({ success: true, post: newPost });
