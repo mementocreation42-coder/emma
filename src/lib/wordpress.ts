@@ -126,7 +126,7 @@ export async function uploadMedia(file: File | Blob, title: string): Promise<Wor
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`WordPress Upload Error: ${response.status}`, errorText);
-            throw new Error(`Failed to upload media: ${response.statusText}`);
+            throw new Error(`Failed to upload media: ${response.status} ${errorText}`);
         }
 
         return await response.json();
@@ -161,7 +161,7 @@ export async function createPost(postData: {
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`WordPress Create Post Error: ${response.status}`, errorText);
-            throw new Error(`Failed to create post: ${response.statusText}`);
+            throw new Error(`Failed to create post: ${response.status} ${errorText}`);
         }
 
         return await response.json();
