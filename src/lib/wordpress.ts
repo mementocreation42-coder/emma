@@ -342,3 +342,30 @@ export async function updatePost(id: number, postData: {
         throw error;
     }
 }
+
+/**
+ * Delete a Post
+ */
+export async function deletePost(id: number): Promise<boolean> {
+    const url = `${WP_API_URL}/posts/${id}?force=true`; // force=true to skip trash and delete permanently
+
+    try {
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                ...getAuthHeaders(),
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`WordPress Delete Post Error: ${response.status}`, errorText);
+            throw new Error(`Failed to delete post: ${response.status} ${errorText}`);
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Failed to delete post:", error);
+        throw error;
+    }
+}
