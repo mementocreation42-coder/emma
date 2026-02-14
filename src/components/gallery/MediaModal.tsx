@@ -117,7 +117,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
 
                                 {/* Visual Content Area */}
                                 <div
-                                    className="relative flex-1 flex items-center justify-center bg-black w-full overflow-hidden" // flex-1 to fill space
+                                    className="relative flex-1 flex items-center justify-center bg-black w-full overflow-hidden pb-20 md:pb-0" // Added pb-20 to prevent overlap with thumbnails on mobile
                                     onWheel={handleWheel}
                                 >
                                     {/* Navigation Arrows (Inside Visual Area) */}
