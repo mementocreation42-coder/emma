@@ -18,7 +18,7 @@ export default async function AdminDashboard() {
             <div className="container mx-auto py-10">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold">Dashboard</h1>
-                    <Link href="/admin/posts/new">
+                    <Link href="/admin/post">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />
                             Create New Post

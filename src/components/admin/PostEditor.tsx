@@ -104,7 +104,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
 
       // Append images with compression
       const compressionOptions = {
-        maxSizeMB: 1, // Max 1MB
+        maxSizeMB: 0.5, // Reduced to 0.5MB as requested
         maxWidthOrHeight: 1920,
         useWebWorker: true
       }
