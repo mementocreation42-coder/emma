@@ -83,3 +83,19 @@ export async function POST(
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
+
+import { deletePost } from "@/lib/wordpress";
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        await deletePost(parseInt(id));
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error("API Delete Error:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
