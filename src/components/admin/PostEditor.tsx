@@ -102,7 +102,10 @@ export function PostEditor() {
         try {
           console.log(`Compressing ${img.file.name}...`)
           const compressedFile = await imageCompression(img.file, compressionOptions);
-          formData.append("images", compressedFile);
+          // Validating that we pass a File object or Blob with filename
+          // browser-image-compression returns a File object usually, but let's be safe
+          // and explicitly pass the original filename to FormData
+          formData.append("images", compressedFile, img.file.name);
         } catch (error) {
           console.error("Compression failed:", error);
           // Fallback to original file if compression fails
