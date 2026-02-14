@@ -40,22 +40,28 @@ const formSchema = z.object({
   images: z.array(z.any()).optional(), // Store file objects
 })
 
+import { WordPressPost } from "@/lib/wordpress"
+
 interface PreviewImage {
   id: string;
   url: string;
   file: File;
 }
 
-export function PostEditor() {
+interface PostEditorProps {
+  initialData?: WordPressPost;
+}
+
+export function PostEditor({ initialData }: PostEditorProps) {
   const [previewImages, setPreviewImages] = useState<PreviewImage[]>([])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      content: "",
-      mediaType: "image",
-      cloudinaryId: "",
+      title: initialData?.title.rendered || "",
+      content: initialData?.content.rendered || "",
+      mediaType: (initialData?.acf?.media_type as "image" | "video") || "image",
+      cloudinaryId: initialData?.acf?.cloudinary_id || "",
       images: [],
     },
   })
@@ -113,7 +119,9 @@ export function PostEditor() {
         }
       }
 
-      const response = await fetch("/api/posts", {
+      const url = initialData ? `/api/posts/${initialData.id}` : "/api/posts"
+
+      const response = await fetch(url, {
         method: "POST",
         body: formData,
       })
@@ -132,10 +140,13 @@ export function PostEditor() {
         throw new Error(data?.error || "Failed to create post")
       }
 
-      alert("Post created successfully!")
-      // Reset form or redirect
-      form.reset()
-      setPreviewImages([])
+      alert(initialData ? "Post updated successfully!" : "Post created successfully!")
+
+      if (!initialData) {
+        // Only reset on create, keep form on edit
+        form.reset()
+        setPreviewImages([])
+      }
 
     } catch (error: any) {
       console.error(error)
@@ -147,7 +158,7 @@ export function PostEditor() {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-8">Create New Post</h1>
+      <h1 className="text-3xl font-bold mb-8">{initialData ? "Edit Post" : "Create New Post"}</h1>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -255,10 +266,10 @@ export function PostEditor() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Publishing...
+                      {initialData ? "Updating..." : "Publishing..."}
                     </>
                   ) : (
-                    "Publish Post"
+                    initialData ? "Update Post" : "Publish Post"
                   )}
                 </Button>
               </CardContent>
