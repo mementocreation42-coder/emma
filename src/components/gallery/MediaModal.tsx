@@ -223,7 +223,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                         transition={{ delay: 0.3 }}
                                     >
                                         <span className="inline-block px-3 py-1 mb-4 text-xs font-medium tracking-wider text-black bg-primary rounded-full">
-                                            {new Date(selectedMedia.date).toLocaleDateString()}
+                                            {selectedMedia.date.replace(/-/g, '/')}
                                         </span>
                                         <h3 className="mb-4 text-2xl font-serif font-light leading-snug text-white/90">
                                             {selectedMedia.alt}
