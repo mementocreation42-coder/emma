@@ -40,9 +40,9 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
 
     const handleWheel = (e: React.WheelEvent) => {
         const now = Date.now();
-        if (now - lastWheelTime.current < 800) return;
+        if (now - lastWheelTime.current < 500) return; // Decreased throttle from 800ms
 
-        if (Math.abs(e.deltaX) > 30 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        if (Math.abs(e.deltaX) > 20 && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { // Decreased threshold from 30
             if (e.deltaX > 0) {
                 handleSwipe('next');
             } else {
