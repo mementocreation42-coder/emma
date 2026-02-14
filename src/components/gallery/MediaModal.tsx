@@ -112,7 +112,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                             {/* Navigation Arrows */}
 
 
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] h-[80vh] md:h-auto bg-zinc-900">
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] h-[80vh] md:h-[85vh] bg-zinc-900">
 
                                 {/* Visual Content Area */}
                                 <div
