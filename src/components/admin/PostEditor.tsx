@@ -99,10 +99,18 @@ export function PostEditor() {
         body: formData,
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (error) {
+        // If response is not JSON (e.g., 413 Request Entity Too Large HTML), handle it
+        if (!response.ok) {
+          throw new Error(`Server Error: ${response.status} ${response.statusText}`)
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create post")
+        throw new Error(data?.error || "Failed to create post")
       }
 
       alert("Post created successfully!")
