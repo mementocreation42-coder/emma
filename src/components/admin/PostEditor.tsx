@@ -3,8 +3,10 @@
 
 import { useCallback, useState } from "react"
 import { useDropzone } from "react-dropzone"
-import { X, Upload, Image as ImageIcon } from "lucide-react"
+import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+// @ts-ignore
+import imageCompression from 'browser-image-compression';
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -89,10 +91,24 @@ export function PostEditor() {
       formData.append("mediaType", values.mediaType)
       if (values.cloudinaryId) formData.append("cloudinaryId", values.cloudinaryId)
 
-      // Append images
-      previewImages.forEach(img => {
-        formData.append("images", img.file)
-      })
+      // Append images with compression
+      const compressionOptions = {
+        maxSizeMB: 1, // Max 1MB
+        maxWidthOrHeight: 1920,
+        useWebWorker: true
+      }
+
+      for (const img of previewImages) {
+        try {
+          console.log(`Compressing ${img.file.name}...`)
+          const compressedFile = await imageCompression(img.file, compressionOptions);
+          formData.append("images", compressedFile);
+        } catch (error) {
+          console.error("Compression failed:", error);
+          // Fallback to original file if compression fails
+          formData.append("images", img.file);
+        }
+      }
 
       const response = await fetch("/api/posts", {
         method: "POST",
@@ -232,7 +248,16 @@ export function PostEditor() {
                 <CardTitle>Publish</CardTitle>
               </CardHeader>
               <CardContent>
-                <Button type="submit" className="w-full">Publish Post</Button>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    "Publish Post"
+                  )}
+                </Button>
               </CardContent>
             </Card>
 
