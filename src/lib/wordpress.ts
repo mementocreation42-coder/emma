@@ -284,3 +284,61 @@ export function convertToMediaItems(posts: WordPressPost[]): MediaItem[] {
         };
     }).filter((item) => item.src); // Filter out items without a source
 }
+
+/**
+ * Fetch a single post by ID
+ */
+export async function fetchWordPressPost(id: number): Promise<WordPressPost | null> {
+    const url = `${WP_API_URL}/posts/${id}?_embed`;
+
+    try {
+        const response = await fetch(url, {
+            next: { revalidate: 0 }, // No cache for editing
+        });
+
+        if (!response.ok) {
+            console.error(`WordPress API error: ${response.status} ${response.statusText}`);
+            return null;
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error(`Failed to fetch WordPress post ${id}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Update an existing Post
+ */
+export async function updatePost(id: number, postData: {
+    title?: string;
+    content?: string;
+    status?: 'publish' | 'draft';
+    featured_media?: number;
+    acf?: Record<string, any>;
+}): Promise<WordPressPost> {
+    const url = `${WP_API_URL}/posts/${id}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST', // WP API uses POST for updates (or PUT)
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify(postData),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`WordPress Update Post Error: ${response.status}`, errorText);
+            throw new Error(`Failed to update post: ${response.status} ${errorText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to update post:", error);
+        throw error;
+    }
+}
