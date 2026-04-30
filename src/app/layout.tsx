@@ -15,7 +15,8 @@ const geistMono = Geist_Mono({
 const notoSerifJP = Noto_Serif_JP({
   variable: "--font-noto-serif-jp",
   subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700", "900"],
+  weight: ["300", "400", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -33,9 +34,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${notoSerifJP.variable} antialiased`}
       >
-        <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.15] mix-blend-overlay" style={{
-          backgroundImage: `url('/noise.svg')`,
-          filter: 'contrast(120%) brightness(120%)'
+        <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.12] mix-blend-overlay" style={{
+          backgroundImage: `url('/noise.svg')`
         }} />
         {children}
       </body>

@@ -5,9 +5,6 @@ import { useCallback, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import { X, Upload, Image as ImageIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-// @ts-ignore
-import imageCompression from 'browser-image-compression';
-import ExifReader from 'exifreader';
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -80,6 +77,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
     // Auto-detect date from the first image if it's not already set by the user (or is default)
     if (acceptedFiles.length > 0 && !initialData) {
       try {
+        const ExifReader = (await import('exifreader')).default;
         const tags = await ExifReader.load(acceptedFiles[0]);
         // Check for DateTimeOriginal (standard for photos)
         const dateOriginal = tags['DateTimeOriginal']?.description;
@@ -133,6 +131,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
         useWebWorker: true
       }
 
+      const imageCompression = (await import('browser-image-compression')).default;
       for (const img of previewImages) {
         try {
           console.log(`Compressing ${img.file.name}...`)

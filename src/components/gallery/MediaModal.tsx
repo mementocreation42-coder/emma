@@ -79,9 +79,10 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                        transition={{ duration: 0.2 }}
                         onClick={onClose}
-                        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl"
+                        className="fixed inset-0 z-50 bg-black/85"
                     />
 
                     {/* Modal Container */}
@@ -89,7 +90,8 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                         <motion.div
                             layoutId={`media-${selectedMedia.id}`}
                             className="relative w-full max-w-7xl bg-transparent pointer-events-auto overflow-hidden rounded-2xl shadow-2xl"
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            transition={{ type: "spring", damping: 30, stiffness: 400 }}
+                            exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
                             drag="x"
                             dragConstraints={{ left: 0, right: 0 }}
                             dragElastic={0.2}
@@ -105,7 +107,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                         >
                             <button
                                 onClick={onClose}
-                                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/20 text-white/80 backdrop-blur-md hover:bg-black/40 transition-colors"
+                                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -124,7 +126,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                     {hasPrev && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onNavigate('prev'); }}
-                                            className="hidden md:flex absolute top-1/2 left-4 z-50 -translate-y-1/2 p-3 rounded-full bg-black/5 text-white/70 backdrop-blur-md hover:bg-black/10 transition-colors"
+                                            className="hidden md:flex absolute top-1/2 left-4 z-50 -translate-y-1/2 p-3 rounded-full bg-black/20 text-white/70 hover:bg-black/35 transition-colors"
                                         >
                                             <ChevronLeft size={32} />
                                         </button>
@@ -132,7 +134,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                     {hasNext && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onNavigate('next'); }}
-                                            className="hidden md:flex absolute top-1/2 right-4 z-50 -translate-y-1/2 p-3 rounded-full bg-black/5 text-white/70 backdrop-blur-md hover:bg-black/10 transition-colors"
+                                            className="hidden md:flex absolute top-1/2 right-4 z-50 -translate-y-1/2 p-3 rounded-full bg-black/20 text-white/70 hover:bg-black/35 transition-colors"
                                         >
                                             <ChevronRight size={32} />
                                         </button>
@@ -150,7 +152,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                                     alt={selectedMedia.alt}
                                                     className="max-h-full w-auto object-contain pointer-events-none select-none shadow-black drop-shadow-2xl"
                                                     draggable={false}
-                                                    quality={90}
+                                                    quality={80}
                                                 />
                                             ) : (
                                                 <CldImage
@@ -180,7 +182,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
 
                                     {/* Carousel Thumbnails */}
                                     {selectedMedia.gallery && selectedMedia.gallery.length > 1 && (
-                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-40 px-4 py-2 bg-black/40 backdrop-blur-md rounded-2xl overflow-x-auto max-w-full">
+                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-40 px-4 py-2 bg-black/60 rounded-2xl overflow-x-auto max-w-full">
                                             {selectedMedia.gallery.map((item, idx) => (
                                                 <button
                                                     key={idx}
@@ -217,11 +219,11 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                 </div>
 
                                 {/* Text/Story Area */}
-                                <div className="flex flex-col justify-center p-6 md:p-8 text-white h-auto max-h-[35vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900/50 backdrop-blur-sm z-10">
+                                <div className="flex flex-col justify-center p-6 md:p-8 text-white h-auto max-h-[35vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900 z-10">
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
+                                        initial={{ opacity: 0, y: 6 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.3 }}
+                                        transition={{ delay: 0.05, duration: 0.25 }}
                                     >
                                         <span className="inline-block px-3 py-1 mb-4 text-xs font-medium tracking-wider text-black bg-primary rounded-full">
                                             {selectedMedia.date.replace(/-/g, '/')}

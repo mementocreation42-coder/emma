@@ -12,9 +12,9 @@ export function Hero() {
             <div className="z-10 text-center px-4">
 
                 <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
+                    transition={{ delay: 0.05, duration: 0.45, ease: "easeOut" }}
                     className="text-6xl md:text-8xl lg:text-9xl font-serif font-thin tracking-tighter text-foreground"
                 >
                     Emma
@@ -23,7 +23,7 @@ export function Hero() {
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8, duration: 1 }}
+                    transition={{ delay: 0.35, duration: 0.4 }}
                     className="mt-8 flex justify-center gap-4"
                 >
                     <div className="h-10 w-[1px] bg-border" />
