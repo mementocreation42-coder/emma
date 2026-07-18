@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Play, Music, ChevronLeft, ChevronRight } from "lucide-react";
-import { MediaItem } from "./types";
-import { CldImage, CldVideoPlayer } from "next-cloudinary";
+import { m, AnimatePresence } from "framer-motion";
+import { X, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { MediaItem } from "@/types/media";
 import Image from "next/image";
-import 'next-cloudinary/dist/cld-video-player.css';
+import dynamic from "next/dynamic";
+import { cloudinaryImageUrl } from "@/lib/cloudinary";
+
+// video.js is heavy — only load it when a video is actually opened
+const VideoPlayer = dynamic(() => import("./VideoPlayer"), {
+    ssr: false,
+    loading: () => <div className="w-full aspect-video animate-pulse bg-zinc-800 rounded-lg" />,
+});
 
 interface MediaModalProps {
     selectedMedia: MediaItem | null;
@@ -16,14 +22,58 @@ interface MediaModalProps {
     hasNext: boolean;
 }
 
+interface ModalImageProps {
+    src: string;
+    thumbSrc?: string;
+    aspectRatio: number;
+    alt: string;
+}
+
+// Shows the already-cached grid thumbnail instantly while the full-size image loads,
+// so the modal never opens onto a black box
+function ModalImage({ src, thumbSrc, aspectRatio, alt }: ModalImageProps) {
+    const [fullLoaded, setFullLoaded] = useState(false);
+
+    return (
+        <div
+            className="relative w-full h-full flex items-center justify-center pointer-events-none select-none"
+            onDragStart={(e) => e.preventDefault()}
+        >
+            {thumbSrc && !fullLoaded && (
+                <Image
+                    src={thumbSrc}
+                    alt=""
+                    fill
+                    // Same sizes as GalleryGrid so the browser reuses the cached response
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                    className="object-contain"
+                />
+            )}
+            <Image
+                width={aspectRatio < 1 ? 1080 : 1920}
+                height={aspectRatio < 1 ? 1920 : 1080}
+                src={src.startsWith('http') ? src : cloudinaryImageUrl(src)}
+                alt={alt}
+                onLoad={() => setFullLoaded(true)}
+                className={`max-h-full w-auto object-contain pointer-events-none select-none shadow-black drop-shadow-2xl transition-opacity duration-300 ${fullLoaded ? 'opacity-100' : 'opacity-0'}`}
+                draggable={false}
+                quality={90}
+            />
+        </div>
+    );
+}
+
 export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNext }: MediaModalProps) {
     const [internalIndex, setInternalIndex] = useState(0);
     const lastWheelTime = useRef<number>(0);
 
     // Reset internal index when selectedMedia changes
-    useEffect(() => {
+    // (adjust-during-render instead of an effect: avoids a wasted re-render pass)
+    const [prevMedia, setPrevMedia] = useState(selectedMedia);
+    if (selectedMedia !== prevMedia) {
+        setPrevMedia(selectedMedia);
         setInternalIndex(0);
-    }, [selectedMedia]);
+    }
 
     const activeItem = selectedMedia?.gallery ? selectedMedia.gallery[internalIndex] : selectedMedia;
     const hasInternalPrev = internalIndex > 0;
@@ -69,27 +119,30 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
         return Math.abs(offset) * velocity;
     };
 
-    if (!activeItem || !selectedMedia) return null;
-
     return (
+        // AnimatePresence must stay mounted while the modal unmounts,
+        // otherwise the exit animation is skipped and the close feels abrupt
         <AnimatePresence>
-            {selectedMedia && (
-                <>
-                    {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl"
-                    />
-
-                    {/* Modal Container */}
-                    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 md:p-8">
-                        <motion.div
-                            layoutId={`media-${selectedMedia.id}`}
+            {selectedMedia && activeItem && (
+                // Keyed direct child (not a fragment) so AnimatePresence can track removal
+                <m.div
+                    key="media-modal-backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.3, ease: "easeOut", delay: 0.1 } }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    onClick={onClose}
+                    className="fixed inset-0 z-50 bg-black/90"
+                />
+            )}
+            {selectedMedia && activeItem && (
+                <div key="media-modal" className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 md:p-8">
+                        <m.div
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15, ease: "easeOut" } }}
                             className="relative w-full max-w-7xl bg-transparent pointer-events-auto overflow-hidden rounded-2xl shadow-2xl"
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
                             drag="x"
                             dragConstraints={{ left: 0, right: 0 }}
                             dragElastic={0.2}
@@ -138,42 +191,21 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                         </button>
                                     )}
                                     {activeItem.type === 'image' ? (
-                                        <div
-                                            className="w-full h-full flex items-center justify-center pointer-events-none select-none"
-                                            onDragStart={(e) => e.preventDefault()}
-                                        >
-                                            {activeItem.src.startsWith('http') ? (
-                                                <Image
-                                                    width={activeItem.aspectRatio < 1 ? 1080 : 1920}
-                                                    height={activeItem.aspectRatio < 1 ? 1920 : 1080}
-                                                    src={activeItem.src}
-                                                    alt={selectedMedia.alt}
-                                                    className="max-h-full w-auto object-contain pointer-events-none select-none shadow-black drop-shadow-2xl"
-                                                    draggable={false}
-                                                    quality={90}
-                                                />
-                                            ) : (
-                                                <CldImage
-                                                    width={activeItem.aspectRatio < 1 ? 1080 : 1920}
-                                                    height={activeItem.aspectRatio < 1 ? 1920 : 1080}
-                                                    src={activeItem.src}
-                                                    alt={selectedMedia.alt}
-                                                    className="max-h-full w-auto object-contain pointer-events-none select-none shadow-black drop-shadow-2xl"
-                                                    draggable={false}
-                                                />
-                                            )}
-                                        </div>
+                                        <ModalImage
+                                            key={activeItem.src}
+                                            src={activeItem.src}
+                                            // The first gallery image is the featured image, so its grid
+                                            // thumbnail works as an instant underlay there too
+                                            thumbSrc={internalIndex === 0 ? selectedMedia.thumbSrc : undefined}
+                                            aspectRatio={activeItem.aspectRatio}
+                                            alt={selectedMedia.alt}
+                                        />
                                     ) : (
                                         <div className={`w-full h-full flex items-center justify-center ${activeItem.aspectRatio < 1 ? 'max-w-[50vh]' : ''}`}>
-                                            <CldVideoPlayer
+                                            <VideoPlayer
                                                 width={activeItem.aspectRatio < 1 ? 1080 : 1920}
                                                 height={activeItem.aspectRatio < 1 ? 1920 : 1080}
                                                 src={activeItem.src}
-                                                colors={{
-                                                    accent: '#ffffff',
-                                                    base: '#000000',
-                                                    text: '#ffffff'
-                                                }}
                                             />
                                         </div>
                                     )}
@@ -187,24 +219,15 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                                     onClick={(e) => { e.stopPropagation(); setInternalIndex(idx); }}
                                                     className={`relative w-12 h-12 shrink-0 rounded-md overflow-hidden transition-all duration-300 border-2 ${idx === internalIndex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
                                                 >
-                                                    {item.src.startsWith('http') ? (
-                                                        <Image
-                                                            src={item.src}
-                                                            alt={`Thumbnail ${idx + 1}`}
-                                                            fill
-                                                            className="object-cover"
-                                                            sizes="48px"
-                                                        />
-                                                    ) : (
-                                                        <CldImage
-                                                            src={item.src}
-                                                            alt={`Thumbnail ${idx + 1}`}
-                                                            fill
-                                                            className="object-cover"
-                                                            format="jpg"
-                                                            sizes="48px"
-                                                        />
-                                                    )}
+                                                    <Image
+                                                        src={item.src.startsWith('http')
+                                                            ? item.src
+                                                            : cloudinaryImageUrl(item.src, 200)}
+                                                        alt={`Thumbnail ${idx + 1}`}
+                                                        fill
+                                                        className="object-cover"
+                                                        sizes="48px"
+                                                    />
                                                     {item.type === 'video' && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                                                             <Play size={12} className="text-white fill-white" />
@@ -217,8 +240,8 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                 </div>
 
                                 {/* Text/Story Area */}
-                                <div className="flex flex-col justify-center p-6 md:p-8 text-white h-auto max-h-[35vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900/50 backdrop-blur-sm z-10">
-                                    <motion.div
+                                <div className="flex flex-col justify-center p-6 md:p-8 text-white h-auto max-h-[35vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900 z-10">
+                                    <m.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.3 }}
@@ -226,7 +249,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                         <span className="inline-block px-3 py-1 mb-4 text-xs font-medium tracking-wider text-black bg-primary rounded-full">
                                             {selectedMedia.date.replace(/-/g, '/')}
                                         </span>
-                                        <h3 className="mb-4 text-2xl font-serif font-light leading-snug text-white/90">
+                                        <h3 className="mb-4 text-2xl font-serif font-semibold leading-snug text-white/90">
                                             {selectedMedia.alt}
                                         </h3>
                                         <p className="text-sm leading-relaxed text-zinc-400 font-sans tracking-wide">
@@ -240,13 +263,12 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                                 </p>
                                             </div>
                                         )}
-                                    </motion.div>
+                                    </m.div>
                                 </div>
 
                             </div>
-                        </motion.div>
-                    </div>
-                </>
+                        </m.div>
+                </div>
             )}
         </AnimatePresence>
     );

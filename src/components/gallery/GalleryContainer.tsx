@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GalleryGrid } from "./GalleryGrid";
 import { Sidebar } from "../layout/Sidebar";
-import { MediaItem } from "./types";
-import { motion } from "framer-motion";
+import { MediaItem } from "@/types/media";
+import { LazyMotion, m } from "framer-motion";
+import { loadMotionFeatures } from "@/lib/motion";
 import { MediaModal } from "./MediaModal";
 
 interface GalleryContainerProps {
@@ -14,6 +15,15 @@ interface GalleryContainerProps {
 export function GalleryContainer({ initialItems }: GalleryContainerProps) {
     const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
     const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+    const [randomizedItems, setRandomizedItems] = useState(initialItems);
+
+    // Run after the first paint so server and client markup remain identical.
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => {
+            setRandomizedItems([...initialItems].sort(() => Math.random() - 0.5));
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [initialItems]);
 
     // Extract unique Year-Months for the sidebar
     const dateGroups = useMemo(() => {
@@ -37,9 +47,9 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
 
     // Filter items
     const filteredItems = useMemo(() => {
-        if (!selectedDateFilter) return initialItems;
+        if (!selectedDateFilter) return randomizedItems;
         return initialItems.filter(item => item.date.startsWith(selectedDateFilter));
-    }, [initialItems, selectedDateFilter]);
+    }, [initialItems, randomizedItems, selectedDateFilter]);
 
     // Navigation Handler
     const handleNavigate = (direction: 'next' | 'prev') => {
@@ -61,8 +71,11 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
     const hasNext = selectedIndex < filteredItems.length - 1 && selectedIndex !== -1;
 
     return (
+        // LazyMotion with an async bundle keeps the animation engine out of the
+        // initial JS; it loads in parallel right after hydration
+        <LazyMotion features={loadMotionFeatures}>
         <section className="py-12 md:py-24 px-4 bg-background">
-            <div className="container mx-auto flex flex-col md:flex-row gap-8">
+            <div className="container mx-auto flex flex-col gap-6">
                 <Sidebar
                     years={dateGroups}
                     selectedDate={selectedDateFilter}
@@ -70,19 +83,22 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
                 />
 
                 <div className="flex-1">
-                    <motion.h2
+                    <m.h2
                         key={selectedDateFilter || "all"}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mb-8 text-2xl font-serif font-light tracking-wide md:text-3xl"
+                        className="mb-8 text-2xl font-serif font-semibold tracking-wide md:text-3xl"
                     >
                         {selectedDateFilter ?
-                            new Date(`${selectedDateFilter}-01`).toLocaleString('en-US', { year: 'numeric', month: 'long' })
+                            selectedDateFilter.length === 4
+                                ? selectedDateFilter
+                                : new Date(`${selectedDateFilter}-01`).toLocaleString('en-US', { year: 'numeric', month: 'long' })
                             : "All"}
-                    </motion.h2>
+                    </m.h2>
                     <GalleryGrid
                         items={filteredItems}
                         onSelect={setSelectedMedia}
+                        showMonthHeadings={selectedDateFilter !== null}
                     />
                 </div>
             </div>
@@ -95,5 +111,6 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
                 hasNext={hasNext}
             />
         </section>
+        </LazyMotion>
     );
 }

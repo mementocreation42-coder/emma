@@ -3,10 +3,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export async function login(prevState: any, formData: FormData) {
+export async function login(prevState: { error?: string }, formData: FormData) {
     const password = formData.get("password");
+    const sitePassword = process.env.SITE_PASSWORD;
 
-    if (password === "0531") {
+    if (sitePassword && password === sitePassword) {
         const cookieStore = await cookies();
         cookieStore.set("auth", "true", {
             httpOnly: true,

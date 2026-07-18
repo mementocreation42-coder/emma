@@ -60,9 +60,9 @@
   --primary: oklch(0.35 0.15 130);
   /* Deep Green for logic/actions is too strong, using black for primary usually better for museum */
   /* Re-defining primary as the Accent User requested: Sage Green */
-  --primary: oklch(0.75 0.10 150);
-  /* Soft Sage Green */
-  --primary-foreground: oklch(0.985 0.01 90);
+  --primary: oklch(0.79 0.11 300);
+  /* Pastel violet shared by active filters, navigation, and primary actions */
+  --primary-foreground: oklch(0.28 0.06 300);
   --secondary: oklch(0.96 0.01 90);
   --secondary-foreground: oklch(0.25 0.02 90);
   --muted: oklch(0.96 0.01 90);
@@ -72,7 +72,7 @@
   --destructive: oklch(0.6 0.2 25);
   --border: oklch(0.92 0.01 90);
   --input: oklch(0.92 0.01 90);
-  --ring: oklch(0.75 0.10 150);
+  --ring: oklch(0.79 0.11 300);
   /* Matching primary */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -129,6 +129,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    /* Heavier base weight overall; individual elements can still opt lighter. */
+    @apply bg-background text-foreground font-medium;
   }
 }

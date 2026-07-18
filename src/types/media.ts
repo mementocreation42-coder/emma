@@ -4,6 +4,7 @@ export interface MediaItem {
     id: string;
     type: MediaType;
     src: string; // Cover image (or single item)
+    thumbSrc?: string; // Smaller variant for grid thumbnails (falls back to src)
     aspectRatio: number;
     alt: string;
     date: string;

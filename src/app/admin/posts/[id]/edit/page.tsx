@@ -1,5 +1,7 @@
 
 import { PostEditor } from "@/components/admin/PostEditor"
+import { AuroraBackground } from "@/components/layout/AuroraBackground"
+import { SiteNav } from "@/components/layout/SiteNav"
 import { fetchWordPressPost } from "@/lib/wordpress"
 import { notFound } from "next/navigation"
 
@@ -16,7 +18,9 @@ export default async function EditPostPage({ params }: PageProps) {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-200">
+        <div className="relative min-h-screen font-sans">
+            <AuroraBackground />
+            <SiteNav />
             <PostEditor initialData={post} />
         </div>
     )

@@ -1,14 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // output: "export",
   images: {
-    unoptimized: true,
+    formats: ["image/avif", "image/webp"],
+    // WP media URLs are immutable (new upload = new URL), so cache optimized images long-term
+    minimumCacheTTL: 2678400, // 31 days
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
       {
         protocol: "https",
         hostname: "res.cloudinary.com",

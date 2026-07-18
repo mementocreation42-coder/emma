@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { motion } from "framer-motion";
+import { LazyMotion, m } from "framer-motion";
+import { loadMotionFeatures } from "@/lib/motion";
 import { login } from "./actions";
 
 // Submit Button Component to handle pending state
@@ -24,11 +25,12 @@ export default function LoginPage() {
     const [state, formAction] = useActionState(login, { error: "" });
 
     return (
+        <LazyMotion features={loadMotionFeatures}>
         <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#FDFBF7] text-zinc-800 overflow-hidden">
             {/* Vignette Overlay */}
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_15%,rgba(0,0,0,0.25)_100%)]" />
 
-            <motion.div
+            <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
@@ -58,16 +60,17 @@ export default function LoginPage() {
                     <SubmitButton />
 
                     {state?.error && (
-                        <motion.p
+                        <m.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className="text-center text-xs text-red-400 font-medium tracking-wide mt-4"
                         >
                             {state.error}
-                        </motion.p>
+                        </m.p>
                     )}
                 </form>
-            </motion.div>
+            </m.div>
         </div>
+        </LazyMotion>
     );
 }
