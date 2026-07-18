@@ -12,11 +12,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Load through the bold end so font-semibold/bold actually have glyphs to use
+// Load through the bold end so font-semibold/bold actually have glyphs to use.
+// display:swap paints text immediately in the fallback, then swaps — avoids the
+// blank-text delay while the serif loads.
 const notoSerifJP = Noto_Serif_JP({
   variable: "--font-noto-serif-jp",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -39,10 +42,11 @@ export default function RootLayout({
       >
         {/* React hoists this into <head>; video thumbnails/players load directly from Cloudinary */}
         <link rel="preconnect" href="https://res.cloudinary.com" />
-        <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.15] mix-blend-overlay will-change-transform" style={{
+        {/* Film grain. mix-blend gives it its character; we deliberately avoid
+            will-change/filter here — they pinned a full-screen GPU layer and
+            re-ran a CSS filter every frame, which was a major scroll cost. */}
+        <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.15] mix-blend-overlay" style={{
           backgroundImage: `url('/noise.svg')`,
-          filter: 'contrast(120%) brightness(120%)',
-          transform: 'translateZ(0)' // Force GPU layer
         }} />
         {children}
       </body>

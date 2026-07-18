@@ -14,7 +14,7 @@ interface SidebarProps {
 export function Sidebar({ years, selectedDate, onSelectDate }: SidebarProps) {
     return (
         <aside className="sticky top-3 z-20 -mx-4 mb-6 px-4 md:top-6 md:mx-0 md:px-0">
-            <div className="overflow-x-auto rounded-2xl border border-white/60 bg-white/45 p-2 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+            <div className="overflow-x-auto rounded-2xl border border-white/60 bg-white/45 p-2 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.22)] backdrop-blur-md">
                 <div className="flex w-max items-center gap-3">
                     <button
                         onClick={() => onSelectDate(null)}

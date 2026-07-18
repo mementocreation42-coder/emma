@@ -18,7 +18,7 @@ export function SiteNav() {
     const pathname = usePathname();
 
     return (
-        <nav className="fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/60 bg-white/45 p-1.5 font-serif text-[10px] uppercase tracking-[0.14em] shadow-[0_8px_28px_-12px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:bottom-8 sm:gap-2 sm:p-2 sm:text-[11px] dark:border-white/10 dark:bg-neutral-900/50">
+        <nav className="fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/60 bg-white/45 p-1.5 font-serif text-[10px] uppercase tracking-[0.14em] shadow-[0_8px_28px_-12px_rgba(0,0,0,0.32)] backdrop-blur-md sm:bottom-8 sm:gap-2 sm:p-2 sm:text-[11px] dark:border-white/10 dark:bg-neutral-900/50">
             {LINKS.map((link) => {
                 const isActive = pathname === link.href;
                 return (
