@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { updatePost, uploadMedia, deletePost } from "@/lib/wordpress";
 import { isAuthenticated } from "@/lib/auth";
 
@@ -23,20 +24,15 @@ export async function POST(
 
         // Handle NEW images
         const images = formData.getAll("images") as File[];
-        const uploadedImagesList: { id: number, url: string }[] = [];
+        const uploadedImagesList = (await Promise.all(
+            images
+                .filter((image): image is File => image instanceof File && image.size > 0)
+                .map(async (image) => {
+                    const uploaded = await uploadMedia(image, title);
+                    return uploaded ? { id: uploaded.id, url: uploaded.source_url } : null;
+                })
+        )).filter((image): image is { id: number; url: string } => image !== null);
         let featuredMediaId: number | undefined = undefined;
-
-        for (const image of images) {
-            if (image instanceof File) {
-                // Skip if it's not a real file (e.g. empty)
-                if (image.size === 0) continue;
-
-                const uploaded = await uploadMedia(image, title);
-                if (uploaded) {
-                    uploadedImagesList.push({ id: uploaded.id, url: uploaded.source_url });
-                }
-            }
-        }
 
         let finalContent = content || "";
 
@@ -78,6 +74,8 @@ export async function POST(
 
         const updatedPost = await updatePost(parseInt(id), updateData);
 
+        revalidateTag("gallery", "max");
+
         return NextResponse.json({ success: true, post: updatedPost });
 
     } catch (error: any) {
@@ -97,6 +95,7 @@ export async function DELETE(
     try {
         const { id } = await params;
         await deletePost(parseInt(id));
+        revalidateTag("gallery", "max");
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("API Delete Error:", error);

@@ -30,10 +30,11 @@ export async function fetchCategoryIdBySlug(slug: string): Promise<number | null
     if (cached) return cached;
 
     try {
-        // no-store, not revalidate: Next's persistent fetch cache would replay an
-        // empty result captured before the category existed, across restarts.
+        // Short revalidate, not no-store: a miss cached before the category
+        // existed can only linger 5 minutes, while every cold start stops
+        // paying a blocking round-trip before the posts fetch.
         const response = await fetch(`${WP_API_URL}/categories?slug=${encodeURIComponent(slug)}`, {
-            cache: "no-store",
+            next: { revalidate: 300 },
         });
         if (!response.ok) return null;
 
@@ -53,15 +54,24 @@ export async function fetchCategoryIdBySlug(slug: string): Promise<number | null
 export async function fetchWordPressPosts(perPage: number = 100): Promise<WordPressPost[]> {
     const scheduleCategoryId = await fetchCategoryIdBySlug(SCHEDULE_CATEGORY_SLUG);
 
-    let url = `${WP_API_URL}/posts?per_page=${perPage}&status=publish&_embed`;
+    // Only the fields transform.ts reads, and only the featured-media embed:
+    // embedding author/terms/replies and returning every post field roughly
+    // doubled the payload for nothing. _links must stay in _fields or WP
+    // drops _embedded entirely.
+    const fields = "id,date,title,content,excerpt,acf,_links,_embedded";
+    let url = `${WP_API_URL}/posts?per_page=${perPage}&status=publish&_embed=wp:featuredmedia&_fields=${fields}`;
     if (scheduleCategoryId) {
         // Keep schedule entries out of the gallery.
         url += `&categories_exclude=${scheduleCategoryId}`;
     }
 
     try {
+        // Cached and tag-invalidated like the calendar: every post mutation
+        // goes through /api/posts*, which calls revalidateTag("gallery"), so a
+        // newly published photo still appears on the next reload while normal
+        // visits skip the WordPress round-trip entirely.
         const response = await fetch(url, {
-            next: { revalidate: 60 }, // Revalidate every 60 seconds
+            next: { revalidate: 300, tags: ["gallery"] },
         });
 
         if (!response.ok) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { m, AnimatePresence } from "framer-motion";
-import { X, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Play } from "lucide-react";
 import { MediaItem } from "@/types/media";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -55,7 +55,7 @@ function ModalImage({ src, thumbSrc, aspectRatio, alt }: ModalImageProps) {
                 src={src.startsWith('http') ? src : cloudinaryImageUrl(src)}
                 alt={alt}
                 onLoad={() => setFullLoaded(true)}
-                className={`max-h-full w-auto object-contain pointer-events-none select-none shadow-black drop-shadow-2xl transition-opacity duration-300 ${fullLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`max-h-full w-auto scale-110 object-contain pointer-events-none select-none shadow-black drop-shadow-2xl transition-opacity duration-300 ${fullLoaded ? 'opacity-100' : 'opacity-0'}`}
                 draggable={false}
                 quality={90}
             />
@@ -66,6 +66,7 @@ function ModalImage({ src, thumbSrc, aspectRatio, alt }: ModalImageProps) {
 export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNext }: MediaModalProps) {
     const [internalIndex, setInternalIndex] = useState(0);
     const lastWheelTime = useRef<number>(0);
+    const touchStart = useRef<{ x: number; y: number } | null>(null);
 
     // Reset internal index when selectedMedia changes
     // (adjust-during-render instead of an effect: avoids a wasted re-render pass)
@@ -99,6 +100,16 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                 handleSwipe('prev');
             }
             lastWheelTime.current = now;
+        } else if (Math.abs(e.deltaY) > 20 && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            // Trackpad vertical scroll steps between posts, same direction as
+            // the touch swipe: scrolling down brings in the next one.
+            if (e.deltaY > 0 && hasNext) {
+                onNavigate('next');
+                lastWheelTime.current = now;
+            } else if (e.deltaY < 0 && hasPrev) {
+                onNavigate('prev');
+                lastWheelTime.current = now;
+            }
         }
     };
 
@@ -114,10 +125,31 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedMedia, onClose, onNavigate, hasNext, hasPrev]);
 
-    const swipeConfidenceThreshold = 50;
-    const swipePower = (offset: number, velocity: number) => {
-        return Math.abs(offset) * velocity;
-    };
+    function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+        const touch = event.touches[0];
+        if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY };
+    }
+
+    function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+        const start = touchStart.current;
+        touchStart.current = null;
+        const touch = event.changedTouches[0];
+        if (!start || !touch) return;
+
+        const x = touch.clientX - start.x;
+        const y = touch.clientY - start.y;
+        if (Math.max(Math.abs(x), Math.abs(y)) < 50) return;
+
+        // Vertical swipes change the post: swiping up pulls in the next one,
+        // matching the feed convention (and the nav's follow-the-finger
+        // direction). Horizontal edge swipes are reserved by mobile browsers
+        // for history navigation, so photo changes intentionally use the
+        // thumbnail strip instead.
+        if (Math.abs(y) > Math.abs(x)) {
+            if (y < 0 && hasNext) onNavigate("next");
+            else if (y > 0 && hasPrev) onNavigate("prev");
+        }
+    }
 
     return (
         // AnimatePresence must stay mounted while the modal unmounts,
@@ -132,64 +164,34 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                     exit={{ opacity: 0, transition: { duration: 0.3, ease: "easeOut", delay: 0.1 } }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     onClick={onClose}
-                    className="fixed inset-0 z-50 bg-black/90"
+                    className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm"
                 />
             )}
             {selectedMedia && activeItem && (
-                <div key="media-modal" className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 md:p-8">
+                <div key="media-modal" className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 pb-24 md:p-8">
                         <m.div
                             initial={{ opacity: 0, scale: 0.96 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15, ease: "easeOut" } }}
-                            className="relative w-full max-w-7xl bg-transparent pointer-events-auto overflow-hidden rounded-2xl shadow-2xl"
+                            className="relative h-full w-full max-w-none overflow-hidden rounded-3xl border border-white/35 bg-white/15 shadow-[0_24px_90px_rgba(33,20,54,0.38)] backdrop-blur-2xl pointer-events-auto md:h-auto md:max-w-7xl md:border-white/45"
                             transition={{ duration: 0.2, ease: "easeOut" }}
-                            drag="x"
-                            dragConstraints={{ left: 0, right: 0 }}
-                            dragElastic={0.2}
-                            style={{ touchAction: "pan-y" }} // Prevent vertical scroll from interfering with swipe
-                            onDragEnd={(e, { offset, velocity }) => {
-                                const swipe = swipePower(offset.x, velocity.x);
-                                if (swipe < -swipeConfidenceThreshold) {
-                                    handleSwipe("next");
-                                } else if (swipe > swipeConfidenceThreshold) {
-                                    handleSwipe("prev");
-                                }
-                            }}
+                            style={{ touchAction: "none", overscrollBehavior: "contain" }}
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={(event) => event.preventDefault()}
+                            onTouchEnd={handleTouchEnd}
                         >
-                            <button
-                                onClick={onClose}
-                                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/20 text-white/80 backdrop-blur-md hover:bg-black/40 transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(251,191,202,0.5),transparent_34%),radial-gradient(circle_at_86%_20%,rgba(125,211,252,0.34),transparent_33%),radial-gradient(circle_at_55%_100%,rgba(253,230,138,0.28),transparent_40%)]" />
 
                             {/* Navigation Arrows */}
 
 
-                            <div className="flex flex-col md:grid md:grid-cols-[1fr_300px] h-[85vh] bg-zinc-900">
+                            <div className="relative z-10 h-full md:grid md:h-[85vh] md:grid-cols-[minmax(0,1fr)_14rem]">
 
                                 {/* Visual Content Area */}
                                 <div
-                                    className="relative flex-1 flex items-center justify-center bg-black w-full overflow-hidden pb-20 md:pb-0" // Added pb-20 to prevent overlap with thumbnails on mobile
+                                    className="relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-950/35"
                                     onWheel={handleWheel}
                                 >
-                                    {/* Navigation Arrows (Inside Visual Area) */}
-                                    {hasPrev && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onNavigate('prev'); }}
-                                            className="hidden md:flex absolute top-1/2 left-4 z-50 -translate-y-1/2 p-3 rounded-full bg-black/5 text-white/70 backdrop-blur-md hover:bg-black/10 transition-colors"
-                                        >
-                                            <ChevronLeft size={32} />
-                                        </button>
-                                    )}
-                                    {hasNext && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onNavigate('next'); }}
-                                            className="hidden md:flex absolute top-1/2 right-4 z-50 -translate-y-1/2 p-3 rounded-full bg-black/5 text-white/70 backdrop-blur-md hover:bg-black/10 transition-colors"
-                                        >
-                                            <ChevronRight size={32} />
-                                        </button>
-                                    )}
                                     {activeItem.type === 'image' ? (
                                         <ModalImage
                                             key={activeItem.src}
@@ -212,12 +214,12 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
 
                                     {/* Carousel Thumbnails */}
                                     {selectedMedia.gallery && selectedMedia.gallery.length > 1 && (
-                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-40 px-4 py-2 bg-black/40 backdrop-blur-md rounded-2xl overflow-x-auto max-w-full">
+                                        <div className="absolute bottom-6 left-4 right-4 z-40 flex max-w-none gap-3 overflow-x-auto rounded-2xl border border-white/25 bg-white/15 px-4 py-2 backdrop-blur-md md:hidden">
                                             {selectedMedia.gallery.map((item, idx) => (
                                                 <button
                                                     key={idx}
                                                     onClick={(e) => { e.stopPropagation(); setInternalIndex(idx); }}
-                                                    className={`relative w-12 h-12 shrink-0 rounded-md overflow-hidden transition-all duration-300 border-2 ${idx === internalIndex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
+                                                className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-300 ${idx === internalIndex ? 'scale-110 border-violet-100 shadow-lg' : 'border-transparent opacity-60 hover:scale-105 hover:opacity-100'}`}
                                                 >
                                                     <Image
                                                         src={item.src.startsWith('http')
@@ -239,31 +241,67 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                                     )}
                                 </div>
 
-                                {/* Text/Story Area */}
-                                <div className="flex flex-col justify-center p-6 md:p-8 text-white h-auto max-h-[35vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-white/10 bg-zinc-900 z-10">
-                                    <m.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.3 }}
-                                    >
-                                        <span className="inline-block px-3 py-1 mb-4 text-xs font-medium tracking-wider text-black bg-primary rounded-full">
-                                            {selectedMedia.date.replace(/-/g, '/')}
-                                        </span>
-                                        <h3 className="mb-4 text-2xl font-serif font-semibold leading-snug text-white/90">
-                                            {selectedMedia.alt}
-                                        </h3>
-                                        <p className="text-sm leading-relaxed text-zinc-400 font-sans tracking-wide">
-                                            {selectedMedia.description || "No description provided."}
-                                        </p>
+                                {/* Story and close control share one row, keeping their centres aligned. */}
+                                <div className="absolute left-4 right-4 top-4 z-50 flex items-center gap-4 md:static md:col-start-2 md:row-start-1 md:w-auto md:translate-y-0 md:flex-col md:items-stretch md:p-5">
+                                    <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/25 bg-slate-950/25 px-3 py-2.5 text-white shadow-lg backdrop-blur-md md:flex-none md:py-3">
+                                        <m.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.3 }}
+                                            className="flex min-w-0 items-center gap-3 md:flex-col md:items-start md:gap-2"
+                                        >
+                                            <span className="shrink-0 rounded-full bg-violet-200/85 px-2.5 py-1 text-xs font-medium tracking-wider text-violet-950 shadow-sm">
+                                                {selectedMedia.date.replace(/-/g, '/')}
+                                            </span>
+                                            <h3 className="min-w-0 shrink truncate whitespace-nowrap text-base font-semibold text-white md:text-lg">
+                                                {selectedMedia.alt}
+                                            </h3>
+                                            {selectedMedia.description && (
+                                                <>
+                                                    <span aria-hidden="true" className="h-4 w-px shrink-0 bg-white/35" />
+                                                    <p className="min-w-0 flex-1 truncate whitespace-nowrap font-sans text-sm tracking-wide text-white/80">
+                                                        {selectedMedia.description}
+                                                    </p>
+                                                </>
+                                            )}
 
-                                        {selectedMedia.transcription && (
-                                            <div className="mt-8 p-4 bg-white/5 rounded-lg border border-white/5">
-                                                <p className="text-lg font-serif italic text-white/80">
-                                                    "{selectedMedia.transcription}"
-                                                </p>
-                                            </div>
-                                        )}
-                                    </m.div>
+                                            {selectedMedia.transcription && (
+                                                <span className="hidden max-w-48 shrink truncate whitespace-nowrap text-sm italic text-white/75 md:inline">
+                                                    &ldquo;{selectedMedia.transcription}&rdquo;
+                                                </span>
+                                            )}
+                                        </m.div>
+                                    </div>
+                                    <button
+                                        onClick={onClose}
+                                        className="shrink-0 rounded-full border border-white/35 bg-white/20 p-2 text-white/90 backdrop-blur-md transition-colors hover:bg-violet-200/40 md:order-first md:self-end"
+                                    >
+                                        <X size={24} />
+                                    </button>
+                                    {selectedMedia.gallery && selectedMedia.gallery.length > 1 && (
+                                        <div className="hidden gap-2 overflow-x-auto rounded-2xl border border-white/25 bg-white/15 p-2 backdrop-blur-md md:mt-auto md:flex">
+                                            {selectedMedia.gallery.map((item, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={(e) => { e.stopPropagation(); setInternalIndex(idx); }}
+                                                    className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-300 ${idx === internalIndex ? 'border-violet-100 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                                >
+                                                    <Image
+                                                        src={item.src.startsWith('http') ? item.src : cloudinaryImageUrl(item.src, 200)}
+                                                        alt={`Thumbnail ${idx + 1}`}
+                                                        fill
+                                                        className="object-cover"
+                                                        sizes="44px"
+                                                    />
+                                                    {item.type === 'video' && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                            <Play size={12} className="fill-white text-white" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                             </div>

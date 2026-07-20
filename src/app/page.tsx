@@ -3,12 +3,10 @@ import { GalleryContainer } from "@/components/gallery/GalleryContainer";
 import { SiteNav } from "@/components/layout/SiteNav";
 import { getPosts } from "@/lib/api";
 
-// The gallery excludes CMS schedule entries through a no-store category lookup,
-// so this page must render at request time rather than during static generation.
-export const dynamic = "force-dynamic";
-
-
-
+// Statically prerendered and kept fresh two ways: the underlying WordPress
+// fetches revalidate every 5 minutes, and every post mutation calls
+// revalidateTag("gallery"), so uploads still show up on the next reload while
+// ordinary visits get cached HTML with no WordPress round-trip.
 
 export default async function Home() {
   const posts = await getPosts();
@@ -24,7 +22,7 @@ export default async function Home() {
         <Hero />
         <GalleryContainer initialItems={posts} />
       </main>
-      <footer className="py-8 text-center text-xs text-muted-foreground/60 font-serif tracking-widest">
+      <footer className="py-8 text-center text-xs text-muted-foreground/60 tracking-widest">
         Est. 2026
       </footer>
     </div>
