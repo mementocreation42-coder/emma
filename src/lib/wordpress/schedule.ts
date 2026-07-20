@@ -100,9 +100,12 @@ export async function fetchCalendarEvents(start: string, end: string): Promise<C
     });
 
     try {
+        // Cached and tag-invalidated rather than refetched per view: every
+        // mutation goes through /api/schedule, which calls
+        // revalidateTag("calendar"), so cached reads can never go stale.
         const response = await fetch(`${WP_API_URL}/posts?${params}`, {
             headers: getAuthHeaders(),
-            next: { revalidate: 0 },
+            next: { revalidate: 300, tags: ["calendar"] },
         });
         if (!response.ok) {
             console.error(`WordPress calendar fetch error: ${response.status}`);

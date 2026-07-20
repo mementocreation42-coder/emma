@@ -16,7 +16,7 @@ export default function ScheduleLoading() {
             <AuroraBackground />
 
             <SiteNav />
-            <main className="relative z-10 mx-auto max-w-6xl px-4 pb-12 pt-20 sm:pt-24">
+            <main className="relative z-10 mx-auto max-w-3xl px-4 pb-12 pt-10 sm:pt-12">
                 <div className="space-y-4">
                     {/* Header row: month nav + legend/add, as placeholders. */}
                     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -32,7 +32,7 @@ export default function ScheduleLoading() {
                     <div className={cn("overflow-hidden", GLASS_PANEL)}>
                         <div className="grid grid-cols-7 border-b border-white/40 bg-white/25 dark:border-white/10">
                             {WEEKDAYS.map((label) => (
-                                <div key={label} className="py-2 text-center font-serif text-xs tracking-wide text-muted-foreground/60">
+                                <div key={label} className="py-2 text-center text-xs tracking-wide text-muted-foreground/60">
                                     {label}
                                 </div>
                             ))}

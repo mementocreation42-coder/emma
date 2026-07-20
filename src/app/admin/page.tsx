@@ -26,10 +26,10 @@ export default async function AdminDashboard() {
             <AuroraBackground />
             <SiteNav />
 
-            <main className="relative z-10 mx-auto max-w-6xl px-4 pb-12 pt-20 sm:pt-24">
+            <main className="relative z-10 mx-auto max-w-3xl px-4 pb-12 pt-20 sm:pt-24">
                 <div className="mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="font-serif text-2xl font-semibold tracking-wide">ダッシュボード</h1>
+                        <h1 className="text-2xl font-semibold tracking-wide">ダッシュボード</h1>
                         <p className="mt-1 text-sm text-muted-foreground">投稿 {posts.length} 件</p>
                     </div>
                     <Link href="/admin/post">

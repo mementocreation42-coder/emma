@@ -19,7 +19,7 @@ export function Sidebar({ years, selectedDate, onSelectDate }: SidebarProps) {
                     <button
                         onClick={() => onSelectDate(null)}
                         className={cn(
-                            "rounded-full px-3 py-1.5 text-xs font-serif transition-colors",
+                            "rounded-full px-3 py-1.5 text-xs transition-colors",
                             selectedDate === null ? "bg-violet-300/75 font-semibold text-violet-950 shadow-sm" : "text-muted-foreground"
                         )}
                     >

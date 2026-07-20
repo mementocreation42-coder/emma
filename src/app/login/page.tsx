@@ -40,7 +40,7 @@ export default function LoginPage() {
                     <h1 className="text-sm font-medium tracking-[0.2em] text-zinc-400 uppercase">
                         Private Archive
                     </h1>
-                    <div className="mt-4 text-xs text-zinc-300 font-serif italic">
+                    <div className="mt-4 text-xs text-zinc-300 italic">
                         For Family Only
                     </div>
                 </div>
@@ -52,7 +52,7 @@ export default function LoginPage() {
                             name="password"
                             placeholder="Enter Access Key"
                             required
-                            className="w-full px-4 py-3 text-center bg-transparent border-b border-zinc-200 outline-none placeholder:text-zinc-300 focus:border-zinc-400 transition-colors font-serif text-lg tracking-widest"
+                            className="w-full px-4 py-3 text-center bg-transparent border-b border-zinc-200 outline-none placeholder:text-zinc-300 focus:border-zinc-400 transition-colors text-lg tracking-widest"
                             autoFocus
                         />
                     </div>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import {
     fetchCalendarEvents,
     createCalendarEvent,
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
         if ("error" in input) return badRequest(input.error);
 
         const event = await createCalendarEvent(input);
+        revalidateTag("calendar", "max");
         return NextResponse.json({ success: true, event });
     } catch (error) {
         return serverError(error, "予定を追加できませんでした");
@@ -105,6 +107,7 @@ export async function PATCH(request: NextRequest) {
         if ("error" in input) return badRequest(input.error);
 
         const event = await updateCalendarEvent(id, input);
+        revalidateTag("calendar", "max");
         return NextResponse.json({ success: true, event });
     } catch (error) {
         return serverError(error, "予定を更新できませんでした");
@@ -119,6 +122,7 @@ export async function DELETE(request: NextRequest) {
 
     try {
         await trashCalendarEvent(id);
+        revalidateTag("calendar", "max");
         return NextResponse.json({ success: true });
     } catch (error) {
         return serverError(error, "削除できませんでした");

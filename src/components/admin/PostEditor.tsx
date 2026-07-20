@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useDropzone } from "react-dropzone"
-import { X, Upload, Loader2 } from "lucide-react"
+import { X, Upload, Loader2, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { WordPressPost } from "@/lib/wordpress"
 import { useForm } from "react-hook-form"
@@ -20,7 +20,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -84,6 +83,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
   const router = useRouter()
   const [previewImages, setPreviewImages] = useState<PreviewImage[]>([])
   const [videoUpload, setVideoUpload] = useState<VideoUploadState>({ status: 'idle', progress: 0 })
+  const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
 
   // Existing auto-appended gallery block, kept out of the textarea and re-attached on submit
   const { text: initialContentText, galleryHtml } = useMemo(
@@ -232,7 +232,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
 
       // Append images with compression
       const compressionOptions = {
-        maxSizeMB: 0.5, // Reduced to 0.5MB as requested
+        maxSizeMB: 0.3, // Aim for roughly 300KB per uploaded image
         maxWidthOrHeight: 1920,
         useWebWorker: true
       }
@@ -242,16 +242,20 @@ export function PostEditor({ initialData }: PostEditorProps) {
         ? (await import('browser-image-compression')).default
         : null;
 
-      for (const img of previewImages) {
+      // Compress selected images in parallel. The previous sequential loop made
+      // a multi-photo post wait for every image before even starting the upload.
+      const compressedImages = await Promise.all(previewImages.map(async (img) => {
         try {
-          const compressedFile = await imageCompression!(img.file, compressionOptions);
-          formData.append("images", compressedFile, img.file.name);
+          return await imageCompression!(img.file, compressionOptions);
         } catch (error) {
           console.error("Compression failed:", error);
-          // Fallback to original file if compression fails
-          formData.append("images", img.file);
+          // Keep the post usable even when a device cannot compress one image.
+          return img.file;
         }
-      }
+      }));
+      compressedImages.forEach((file, index) => {
+        formData.append("images", file, previewImages[index].file.name);
+      });
 
       const url = initialData ? `/api/posts/${initialData.id}` : "/api/posts"
 
@@ -274,16 +278,12 @@ export function PostEditor({ initialData }: PostEditorProps) {
         throw new Error(data?.error || "Failed to create post")
       }
 
-      alert(initialData ? "投稿を更新しました" : "投稿を公開しました")
-
       previewImages.forEach(img => URL.revokeObjectURL(img.url))
       setPreviewImages([])
       if (!initialData) {
         form.reset()
       }
-      // Back to the dashboard with a fresh post list
-      router.push("/admin")
-      router.refresh()
+      setPublishSuccess(initialData ? "投稿を更新しました" : "投稿を公開しました")
 
     } catch (error: any) {
       console.error(error)
@@ -294,15 +294,74 @@ export function PostEditor({ initialData }: PostEditorProps) {
   }
 
   return (
-    <div className="relative z-10 mx-auto max-w-6xl px-4 pb-12 pt-20 sm:pt-24">
-      <h1 className="mb-8 font-serif text-2xl font-semibold tracking-wide sm:text-3xl">
+    <div className="relative z-10 mx-auto max-w-2xl px-4 pb-12 pt-20 sm:pt-24">
+      {publishSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-sm border-white/60 bg-white/90 text-center shadow-2xl backdrop-blur-xl">
+            <CardContent className="flex flex-col items-center p-7">
+              <span className="mb-4 rounded-full bg-violet-200/80 p-3 text-violet-800">
+                <CheckCircle2 className="h-7 w-7" />
+              </span>
+              <h2 className="text-lg font-semibold">{publishSuccess}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">ギャラリーへ反映しました。</p>
+              <div className="mt-6 grid w-full gap-2">
+                <Button onClick={() => { router.push("/admin"); router.refresh(); }}>
+                  ダッシュボードへ
+                </Button>
+                <Button variant="outline" onClick={() => setPublishSuccess(null)}>
+                  {initialData ? "編集を続ける" : "続けて投稿する"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      <h1 className="mb-8 text-2xl font-semibold tracking-wide sm:text-3xl">
         {initialData ? "投稿を編集" : "新規投稿"}
       </h1>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-4xl space-y-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-2xl space-y-8">
 
           <div className="space-y-8">
+
+            <Card className={GLASS_PANEL}>
+              <CardHeader>
+                <CardTitle className="text-base font-semibold tracking-wide">投稿内容</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>タイトル</FormLabel>
+                      <FormControl>
+                        <Input placeholder="タイトルを入力" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>日時</FormLabel>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        初期値は現在日時です。写真のExif情報があれば自動で設定されます。
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
 
             {/* Drag & Drop Zone */}
             <Card className={cn(GLASS_PANEL, "overflow-hidden border-2 border-dashed py-0")}>
@@ -376,70 +435,12 @@ export function PostEditor({ initialData }: PostEditorProps) {
               )}
             </Card>
 
-            <Card className={GLASS_PANEL}>
-              <CardHeader>
-                <CardTitle className="font-serif text-base font-semibold tracking-wide">投稿内容</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>タイトル</FormLabel>
-                      <FormControl>
-                        <Input placeholder="タイトルを入力" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>日時</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        初期値は現在日時です。写真のExif情報があれば自動で設定されます。
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="content"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>本文</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="ここに本文を入力..."
-                          className="min-h-[400px] font-mono"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        HTMLに対応しています。ギャラリー画像は自動管理され、この欄には表示されません。
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
           </div>
 
           <div className="space-y-8">
             <Card className={GLASS_PANEL}>
               <CardHeader>
-                <CardTitle className="font-serif text-base font-semibold tracking-wide">公開</CardTitle>
+                <CardTitle className="text-base font-semibold tracking-wide">公開</CardTitle>
               </CardHeader>
               <CardContent>
                 <Button type="submit" className="w-full" disabled={isLoading || videoUpload.status === 'uploading'}>
@@ -462,7 +463,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
 
             <Card className={GLASS_PANEL}>
               <CardHeader>
-                <CardTitle className="font-serif text-base font-semibold tracking-wide">メディア設定</CardTitle>
+                <CardTitle className="text-base font-semibold tracking-wide">メディア設定</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <FormField

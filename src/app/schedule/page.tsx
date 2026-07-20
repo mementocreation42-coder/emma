@@ -21,10 +21,11 @@ export default async function SchedulePage() {
     return (
         <div className="relative min-h-screen font-sans">
             <AuroraBackground />
+            <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-slate-900/38" />
 
             <SiteNav />
             {/* pt clears the fixed nav; the nav itself names the page. */}
-            <main className="relative z-10 mx-auto max-w-6xl px-4 pb-12 pt-20 sm:pt-24">
+            <main className="relative z-10 mx-auto max-w-3xl px-4 pb-12 pt-10 sm:pt-12">
                 <Calendar initialEvents={events} initialMonthStart={monthStart} />
             </main>
         </div>

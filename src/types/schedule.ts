@@ -7,8 +7,8 @@ export const SCHEDULE_CATEGORY_SLUG = 'schedule';
 export type OwnerId = 'husband' | 'wife' | 'ema' | 'family';
 
 export const OWNERS: { id: OwnerId; label: string }[] = [
-    { id: 'husband', label: '夫' },
-    { id: 'wife', label: '妻' },
+    { id: 'husband', label: '大介' },
+    { id: 'wife', label: 'あすか' },
     { id: 'ema', label: '永茉' },
     { id: 'family', label: '家族' },
 ];
