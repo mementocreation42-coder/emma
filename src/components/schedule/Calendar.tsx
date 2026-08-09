@@ -37,7 +37,7 @@ const HOLIDAYS_API_URL = "https://holidays-jp.github.io/api/v1/date.json";
  */
 const OWNER_STYLES: Record<OwnerId, string> = {
     husband: "bg-sky-100 text-sky-800 border-sky-600/25 dark:bg-sky-500/15 dark:text-sky-300",
-    wife: "bg-rose-100 text-rose-800 border-rose-600/25 dark:bg-rose-500/15 dark:text-rose-300",
+    wife: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-600/25 dark:bg-fuchsia-500/15 dark:text-fuchsia-300",
     ema: "bg-violet-100 text-violet-800 border-violet-600/25 dark:bg-violet-500/15 dark:text-violet-300",
     family: "bg-amber-100 text-amber-800 border-amber-600/25 dark:bg-amber-500/15 dark:text-amber-300",
 };
@@ -45,7 +45,7 @@ const OWNER_STYLES: Record<OwnerId, string> = {
 /** Solid dot per owner — the mobile stand-in for a full event tag. */
 const OWNER_DOTS: Record<OwnerId, string> = {
     husband: "bg-sky-500",
-    wife: "bg-rose-500",
+    wife: "bg-fuchsia-500",
     ema: "bg-violet-500",
     family: "bg-amber-500",
 };
@@ -54,7 +54,7 @@ const NURSERY_STYLE = "bg-emerald-500/15 text-emerald-800 border-emerald-600/25 
 const NURSERY_DOT = "bg-emerald-500";
 
 function isNurseryEvent(event: CalendarEvent): boolean {
-    return event.place.includes("認可保育園ひひさま");
+    return event.place.includes("認可保育園おひさま") || event.place.includes("認可保育園ひひさま");
 }
 
 function eventStyle(event: CalendarEvent): string {

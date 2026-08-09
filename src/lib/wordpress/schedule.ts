@@ -30,6 +30,12 @@ function decodeTitle(rendered: string): string {
  * contain "-->" or markup) from breaking the comment or the JSON.
  */
 const PAYLOAD_RE = /<!--EMMA_SCHEDULE:([A-Za-z0-9+/=]+)-->/;
+const LEGACY_NURSERY_NAME = "認可保育園ひひさま";
+const NURSERY_NAME = "認可保育園おひさま";
+
+function normalizePlace(place: string): string {
+    return place.replaceAll(LEGACY_NURSERY_NAME, NURSERY_NAME);
+}
 
 interface SchedulePayload {
     owner: OwnerId;
@@ -39,7 +45,7 @@ interface SchedulePayload {
 }
 
 function encodePayload(p: SchedulePayload): string {
-    const json = JSON.stringify({ owner: p.owner, allDay: p.allDay, place: p.place, note: p.note });
+    const json = JSON.stringify({ owner: p.owner, allDay: p.allDay, place: normalizePlace(p.place), note: p.note });
     return `<!--EMMA_SCHEDULE:${Buffer.from(json, "utf8").toString("base64")}-->`;
 }
 
@@ -52,7 +58,7 @@ function decodePayload(content: string): SchedulePayload | null {
         return {
             owner: parsed.owner,
             allDay: parsed.allDay === true,
-            place: typeof parsed.place === "string" ? parsed.place : "",
+            place: typeof parsed.place === "string" ? normalizePlace(parsed.place) : "",
             note: typeof parsed.note === "string" ? parsed.note : "",
         };
     } catch {
@@ -143,7 +149,7 @@ function eventFromInput(id: string, input: CalendarEventInput): CalendarEvent {
         owner: input.owner,
         startsAt: input.startsAt.slice(0, 16),
         allDay: input.allDay,
-        place: input.place,
+        place: normalizePlace(input.place),
         note: input.note,
     };
 }
