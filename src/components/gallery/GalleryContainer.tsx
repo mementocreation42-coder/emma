@@ -83,9 +83,7 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
         // LazyMotion with an async bundle keeps the animation engine out of the
         // initial JS; it loads in parallel right after hydration
         <LazyMotion features={loadMotionFeatures}>
-        {/* Tight at the top so the first photographs clear the fold; the hero's
-            own gradient already separates the two sections. */}
-        <section className="px-4 pt-5 pb-12 md:pt-8 md:pb-24 bg-background">
+        <section className="py-12 md:py-24 px-4 bg-background">
             <div className="container mx-auto flex max-w-4xl flex-col gap-6">
                 <Sidebar
                     years={dateGroups}

@@ -5,13 +5,7 @@ import { loadMotionFeatures } from "@/lib/motion";
 export function Hero() {
     return (
         <LazyMotion features={loadMotionFeatures}>
-        {/* Deliberately short of a full viewport: the first row of photographs
-            should already be on screen when the site opens, so the gallery —
-            not the title card — is what greets you. */}
-        {/* A compromise height: the hero video is a 9:16 phone clip, so a short
-            band crops it hard, but a full screen pushes the gallery off the
-            fold. This keeps most of the frame and still shows the first photos. */}
-        <section className="relative flex min-h-[60vh] items-center justify-center overflow-hidden bg-background">
+        <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background">
             <video
                 className="absolute inset-0 z-[1] h-full w-full object-cover object-center opacity-50 motion-reduce:hidden"
                 autoPlay
