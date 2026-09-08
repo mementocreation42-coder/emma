@@ -51,6 +51,7 @@ export default function LoginPage() {
                             type="password"
                             name="password"
                             placeholder="Enter Access Key"
+                            autoComplete="current-password"
                             required
                             className="w-full px-4 py-3 text-center bg-transparent border-b border-zinc-200 outline-none placeholder:text-zinc-300 focus:border-zinc-400 transition-colors text-lg tracking-widest"
                             autoFocus

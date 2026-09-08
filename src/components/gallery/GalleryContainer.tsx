@@ -83,7 +83,7 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
         // LazyMotion with an async bundle keeps the animation engine out of the
         // initial JS; it loads in parallel right after hydration
         <LazyMotion features={loadMotionFeatures}>
-        <section className="py-12 md:py-24 px-4 bg-background">
+        <section className="bg-background px-1.5 py-6 sm:px-4 md:py-24">
             <div className="container mx-auto flex max-w-4xl flex-col gap-6">
                 <Sidebar
                     years={dateGroups}
@@ -96,7 +96,7 @@ export function GalleryContainer({ initialItems }: GalleryContainerProps) {
                         key={selectedDateFilter || "all"}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mb-8 text-2xl font-semibold tracking-wide md:text-3xl"
+                        className="mb-4 text-2xl font-semibold tracking-wide md:mb-8 md:text-3xl"
                     >
                         {selectedDateFilter ?
                             selectedDateFilter.length === 4

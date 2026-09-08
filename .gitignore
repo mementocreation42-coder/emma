@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# WP lockdown rollback snapshot (contains post IDs/statuses only)
+scripts/wp-status-backup.json

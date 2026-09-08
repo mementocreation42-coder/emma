@@ -3,7 +3,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { fetchWordPressPosts } from "@/lib/wordpress"
 import { formatDate } from "@/lib/utils"
-import { Plus } from "lucide-react"
+import { Plus, LogOut } from "lucide-react"
+import { logout } from "@/app/login/actions"
 import { PostActions } from "@/components/admin/PostActions"
 import { AuroraBackground, GLASS_PANEL } from "@/components/layout/AuroraBackground"
 import { SiteNav } from "@/components/layout/SiteNav"
@@ -32,12 +33,20 @@ export default async function AdminDashboard() {
                         <h1 className="text-2xl font-semibold tracking-wide">ダッシュボード</h1>
                         <p className="mt-1 text-sm text-muted-foreground">投稿 {posts.length} 件</p>
                     </div>
-                    <Link href="/admin/post">
-                        <Button size="sm" className="text-xs">
-                            <Plus className="mr-1 h-3 w-3" />
-                            新規作成
-                        </Button>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <form action={logout}>
+                            <Button type="submit" size="sm" variant="outline" className="text-xs">
+                                <LogOut className="mr-1 h-3 w-3" />
+                                ログアウト
+                            </Button>
+                        </form>
+                        <Link href="/admin/post">
+                            <Button size="sm" className="text-xs">
+                                <Plus className="mr-1 h-3 w-3" />
+                                新規作成
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 <div className={cn("overflow-hidden", GLASS_PANEL)}>

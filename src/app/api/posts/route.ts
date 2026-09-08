@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { createPost, uploadMedia } from "@/lib/wordpress";
+import { createPost } from "@/lib/wordpress";
 import { isAuthenticated } from "@/lib/auth";
+import { collectImages } from "@/lib/collect-images";
 
 export async function POST(request: NextRequest) {
     if (!(await isAuthenticated())) {
@@ -18,15 +19,7 @@ export async function POST(request: NextRequest) {
         const cloudinaryId = formData.get("cloudinaryId") as string;
 
         // Upload images to WordPress
-        const images = formData.getAll("images") as File[];
-        const uploadedImagesList = (await Promise.all(
-            images
-                .filter((image): image is File => image instanceof File && image.size > 0)
-                .map(async (image) => {
-                    const uploaded = await uploadMedia(image, title);
-                    return uploaded ? { id: uploaded.id, url: uploaded.source_url } : null;
-                })
-        )).filter((image): image is { id: number; url: string } => image !== null);
+        const uploadedImagesList = await collectImages(formData, title);
         let featuredMediaId: number | undefined = undefined;
 
         let finalContent = content || "";
@@ -49,12 +42,13 @@ export async function POST(request: NextRequest) {
             wp_image: featuredMediaId, // Required field: Map the first uploaded image
         };
 
-        // Create Post in WordPress
+        // Create Post in WordPress. Private keeps it off the public WP
+        // front-end/feed/REST; the gallery reads private posts with auth.
         const newPost = await createPost({
             title,
             content: finalContent,
             date,
-            status: 'publish',
+            status: 'private',
             featured_media: featuredMediaId,
             acf: acf
         });

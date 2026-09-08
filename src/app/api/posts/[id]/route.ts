@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { updatePost, uploadMedia, deletePost } from "@/lib/wordpress";
+import { updatePost, deletePost } from "@/lib/wordpress";
 import { isAuthenticated } from "@/lib/auth";
+import { collectImages } from "@/lib/collect-images";
 
 export async function POST(
     request: NextRequest,
@@ -23,15 +24,7 @@ export async function POST(
         const existingWpImageId = formData.get("wp_image") as string;
 
         // Handle NEW images
-        const images = formData.getAll("images") as File[];
-        const uploadedImagesList = (await Promise.all(
-            images
-                .filter((image): image is File => image instanceof File && image.size > 0)
-                .map(async (image) => {
-                    const uploaded = await uploadMedia(image, title);
-                    return uploaded ? { id: uploaded.id, url: uploaded.source_url } : null;
-                })
-        )).filter((image): image is { id: number; url: string } => image !== null);
+        const uploadedImagesList = await collectImages(formData, title);
         let featuredMediaId: number | undefined = undefined;
 
         let finalContent = content || "";

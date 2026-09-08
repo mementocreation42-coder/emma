@@ -16,6 +16,17 @@ export function getAuthHeaders() {
     };
 }
 
+/**
+ * Auth for READ requests. WordPress rejects anonymous REST requests (posts are
+ * private and the Disable WP REST API plugin blocks logged-out access), so
+ * reads must authenticate too. Returns undefined when credentials are missing
+ * so a misconfigured environment degrades to empty results instead of throwing.
+ */
+function readAuthHeaders(): Record<string, string> | undefined {
+    if (!WP_USER || !WP_APP_PASSWORD) return undefined;
+    return getAuthHeaders();
+}
+
 const categoryIdCache = new Map<string, number | null>();
 
 /**
@@ -34,6 +45,7 @@ export async function fetchCategoryIdBySlug(slug: string): Promise<number | null
         // existed can only linger 5 minutes, while every cold start stops
         // paying a blocking round-trip before the posts fetch.
         const response = await fetch(`${WP_API_URL}/categories?slug=${encodeURIComponent(slug)}`, {
+            headers: readAuthHeaders(),
             next: { revalidate: 300 },
         });
         if (!response.ok) return null;
@@ -59,7 +71,10 @@ export async function fetchWordPressPosts(perPage: number = 100): Promise<WordPr
     // doubled the payload for nothing. _links must stay in _fields or WP
     // drops _embedded entirely.
     const fields = "id,date,title,content,excerpt,acf,_links,_embedded";
-    let url = `${WP_API_URL}/posts?per_page=${perPage}&status=publish&_embed=wp:featuredmedia&_fields=${fields}`;
+    // Gallery posts are stored as private (invisible to the public WordPress
+    // front-end, feed, and sitemap); publish is kept for resilience during the
+    // transition and requires no extra capability.
+    let url = `${WP_API_URL}/posts?per_page=${perPage}&status=private,publish&_embed=wp:featuredmedia&_fields=${fields}`;
     if (scheduleCategoryId) {
         // Keep schedule entries out of the gallery.
         url += `&categories_exclude=${scheduleCategoryId}`;
@@ -71,6 +86,7 @@ export async function fetchWordPressPosts(perPage: number = 100): Promise<WordPr
         // newly published photo still appears on the next reload while normal
         // visits skip the WordPress round-trip entirely.
         const response = await fetch(url, {
+            headers: readAuthHeaders(),
             next: { revalidate: 300, tags: ["gallery"] },
         });
 
@@ -95,6 +111,7 @@ export async function fetchWordPressPost(id: number): Promise<WordPressPost | nu
 
     try {
         const response = await fetch(url, {
+            headers: readAuthHeaders(),
             next: { revalidate: 0 }, // No cache for editing
         });
 
@@ -120,6 +137,7 @@ export async function fetchWordPressMedia(mediaId: number): Promise<WordPressMed
 
     try {
         const response = await fetch(url, {
+            headers: readAuthHeaders(),
             next: { revalidate: 3600 }, // Cache for 1 hour
         });
 
@@ -173,7 +191,7 @@ export async function createPost(postData: {
     title: string;
     content: string;
     date?: string;
-    status: 'publish' | 'draft';
+    status: 'publish' | 'draft' | 'private';
     featured_media?: number;
     categories?: number[];
     acf?: Record<string, unknown>;
@@ -210,7 +228,7 @@ export async function updatePost(id: number, postData: {
     title?: string;
     content?: string;
     date?: string;
-    status?: 'publish' | 'draft';
+    status?: 'publish' | 'draft' | 'private';
     featured_media?: number;
     acf?: Record<string, unknown>;
 }): Promise<WordPressPost> {

@@ -29,36 +29,216 @@ interface ModalImageProps {
     alt: string;
 }
 
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const DOUBLE_TAP_SCALE = 2.5;
+
+interface Transform { scale: number; x: number; y: number }
+
 // Shows the already-cached grid thumbnail instantly while the full-size image loads,
-// so the modal never opens onto a black box
+// so the modal never opens onto a black box.
+// Supports pinch / ctrl+wheel zoom, drag-to-pan while zoomed, and double-tap to toggle.
 function ModalImage({ src, thumbSrc, aspectRatio, alt }: ModalImageProps) {
     const [fullLoaded, setFullLoaded] = useState(false);
+    const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
+    const containerRef = useRef<HTMLDivElement>(null);
+    const transformRef = useRef<Transform>(transform);
+    transformRef.current = transform;
+
+    const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+    const pinchStart = useRef<{ dist: number; scale: number } | null>(null);
+    const panLast = useRef<{ x: number; y: number } | null>(null);
+    const gesture = useRef<{ startX: number; startY: number; startTime: number; moved: boolean; pinched: boolean } | null>(null);
+    const lastTap = useRef<{ x: number; y: number; time: number } | null>(null);
+
+    const zoomed = transform.scale > 1.01;
+
+    // Clamp so the image can't be dragged fully out of view
+    const clamp = (t: Transform): Transform => {
+        const el = containerRef.current;
+        const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, t.scale));
+        if (!el || scale <= 1) return { scale, x: 0, y: 0 };
+        const maxX = ((scale - 1) * el.clientWidth) / 2;
+        const maxY = ((scale - 1) * el.clientHeight) / 2;
+        return {
+            scale,
+            x: Math.min(maxX, Math.max(-maxX, t.x)),
+            y: Math.min(maxY, Math.max(-maxY, t.y)),
+        };
+    };
+
+    // Zoom around a point given in container-centre coordinates
+    const zoomAt = (nextScale: number, px: number, py: number) => {
+        const t = transformRef.current;
+        const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+        const ratio = scale / t.scale;
+        const next = clamp({ scale, x: px - (px - t.x) * ratio, y: py - (py - t.y) * ratio });
+        transformRef.current = next;
+        setTransform(next);
+    };
+
+    const toLocal = (clientX: number, clientY: number) => {
+        const rect = containerRef.current!.getBoundingClientRect();
+        return { x: clientX - rect.left - rect.width / 2, y: clientY - rect.top - rect.height / 2 };
+    };
+
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        const el = containerRef.current;
+        if (!el) return;
+        try { el.setPointerCapture(e.pointerId); } catch { /* pointer already released */ }
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.current.size === 1) {
+            gesture.current = { startX: e.clientX, startY: e.clientY, startTime: Date.now(), moved: false, pinched: false };
+            panLast.current = { x: e.clientX, y: e.clientY };
+        } else if (pointers.current.size === 2) {
+            const [a, b] = Array.from(pointers.current.values());
+            pinchStart.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), scale: transformRef.current.scale };
+            if (gesture.current) gesture.current.pinched = true;
+            panLast.current = null;
+        }
+    };
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!pointers.current.has(e.pointerId)) return;
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.current.size === 2 && pinchStart.current) {
+            const [a, b] = Array.from(pointers.current.values());
+            const dist = Math.hypot(a.x - b.x, a.y - b.y);
+            const mid = toLocal((a.x + b.x) / 2, (a.y + b.y) / 2);
+            const nextScale = pinchStart.current.scale * (dist / pinchStart.current.dist);
+            zoomAt(nextScale, mid.x, mid.y);
+            return;
+        }
+
+        if (pointers.current.size === 1 && panLast.current && transformRef.current.scale > 1) {
+            const dx = e.clientX - panLast.current.x;
+            const dy = e.clientY - panLast.current.y;
+            panLast.current = { x: e.clientX, y: e.clientY };
+            if (gesture.current && Math.hypot(e.clientX - gesture.current.startX, e.clientY - gesture.current.startY) > 8) {
+                gesture.current.moved = true;
+            }
+            const t = transformRef.current;
+            const next = clamp({ ...t, x: t.x + dx, y: t.y + dy });
+            transformRef.current = next;
+            setTransform(next);
+        }
+    };
+
+    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!pointers.current.has(e.pointerId)) return;
+        pointers.current.delete(e.pointerId);
+
+        if (pointers.current.size < 2) pinchStart.current = null;
+        if (pointers.current.size === 1) {
+            const [rest] = Array.from(pointers.current.values());
+            panLast.current = rest;
+            return;
+        }
+        if (pointers.current.size > 0) return;
+
+        // Last finger lifted: snap back below 1x, and detect a double-tap
+        const g = gesture.current;
+        gesture.current = null;
+        panLast.current = null;
+
+        if (transformRef.current.scale < 1.05) {
+            transformRef.current = { scale: 1, x: 0, y: 0 };
+            setTransform(transformRef.current);
+        }
+
+        if (g && !g.moved && !g.pinched && Date.now() - g.startTime < 300) {
+            const now = Date.now();
+            const prev = lastTap.current;
+            if (prev && now - prev.time < 300 && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < 30) {
+                lastTap.current = null;
+                const p = toLocal(e.clientX, e.clientY);
+                if (transformRef.current.scale > 1.01) zoomAt(1, p.x, p.y);
+                else zoomAt(DOUBLE_TAP_SCALE, p.x, p.y);
+            } else {
+                lastTap.current = { x: e.clientX, y: e.clientY, time: now };
+            }
+        }
+    };
+
+    // Keep the parent's swipe-to-navigate from firing while zooming or pinching
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (transformRef.current.scale > 1.01 || gesture.current?.pinched || pinchStart.current) {
+            e.stopPropagation();
+        }
+    };
+
+    // Trackpad pinch arrives as ctrl+wheel; React's wheel listener is passive,
+    // so use a native non-passive one to stop the browser zooming the page.
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const onWheel = (e: WheelEvent) => {
+            const zoomedNow = transformRef.current.scale > 1.01;
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = el.getBoundingClientRect();
+                const px = e.clientX - rect.left - rect.width / 2;
+                const py = e.clientY - rect.top - rect.height / 2;
+                zoomAt(transformRef.current.scale * Math.exp(-e.deltaY * 0.01), px, py);
+            } else if (zoomedNow) {
+                // Plain scrolling pans the zoomed image instead of changing posts
+                e.preventDefault();
+                e.stopPropagation();
+                const t = transformRef.current;
+                const next = clamp({ ...t, x: t.x - e.deltaX, y: t.y - e.deltaY });
+                transformRef.current = next;
+                setTransform(next);
+            }
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <div
-            className="relative w-full h-full flex items-center justify-center pointer-events-none select-none"
+            ref={containerRef}
+            className={`relative w-full h-full overflow-hidden select-none touch-none ${zoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`}
             onDragStart={(e) => e.preventDefault()}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onTouchEnd={handleTouchEnd}
         >
-            {thumbSrc && !fullLoaded && (
+            <div
+                className="relative w-full h-full flex items-center justify-center pointer-events-none"
+                style={{
+                    transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                    transformOrigin: 'center center',
+                    transition: pointers.current.size > 0 ? 'none' : 'transform 0.2s ease-out',
+                    willChange: 'transform',
+                }}
+            >
+                {thumbSrc && !fullLoaded && (
+                    <Image
+                        src={thumbSrc}
+                        alt=""
+                        fill
+                        // Same sizes as GalleryGrid so the browser reuses the cached response
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                        className="object-contain"
+                    />
+                )}
                 <Image
-                    src={thumbSrc}
-                    alt=""
-                    fill
-                    // Same sizes as GalleryGrid so the browser reuses the cached response
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                    className="object-contain"
+                    width={aspectRatio < 1 ? 1080 : 1920}
+                    height={aspectRatio < 1 ? 1920 : 1080}
+                    src={src.startsWith('http') ? src : cloudinaryImageUrl(src)}
+                    alt={alt}
+                    onLoad={() => setFullLoaded(true)}
+                    className={`max-h-full w-auto scale-110 object-contain pointer-events-none select-none shadow-black drop-shadow-2xl transition-opacity duration-300 ${fullLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    draggable={false}
+                    quality={90}
                 />
-            )}
-            <Image
-                width={aspectRatio < 1 ? 1080 : 1920}
-                height={aspectRatio < 1 ? 1920 : 1080}
-                src={src.startsWith('http') ? src : cloudinaryImageUrl(src)}
-                alt={alt}
-                onLoad={() => setFullLoaded(true)}
-                className={`max-h-full w-auto scale-110 object-contain pointer-events-none select-none shadow-black drop-shadow-2xl transition-opacity duration-300 ${fullLoaded ? 'opacity-100' : 'opacity-0'}`}
-                draggable={false}
-                quality={90}
-            />
+            </div>
         </div>
     );
 }
@@ -168,7 +348,7 @@ export function MediaModal({ selectedMedia, onClose, onNavigate, hasPrev, hasNex
                 />
             )}
             {selectedMedia && activeItem && (
-                <div key="media-modal" className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 pb-24 md:p-8">
+                <div key="media-modal" className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-1 md:p-8">
                         <m.div
                             initial={{ opacity: 0, scale: 0.96 }}
                             animate={{ opacity: 1, scale: 1 }}

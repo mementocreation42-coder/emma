@@ -28,6 +28,11 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon-flat.png",
   },
+  // Private family archive — mirror the X-Robots-Tag header in the markup
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({

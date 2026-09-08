@@ -166,7 +166,10 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
         title: input.title,
         content: encodePayload(input),
         date: toWpDate(input.startsAt),
-        status: "publish",
+        // Private, not publish: future-dated private posts stay private forever
+        // (WP never cron-publishes them), so calendar entries can no longer
+        // surface on the public WordPress front-end when their date arrives.
+        status: "private",
         categories: [categoryId],
     });
 

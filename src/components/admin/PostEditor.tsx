@@ -209,6 +209,9 @@ export function PostEditor({ initialData }: PostEditorProps) {
   })
 
   const [isLoading, setIsLoading] = useState(false)
+  // Photo upload progress: photos go up one request each via /api/media, so
+  // there is no cap on how many a post can carry
+  const [imageUploadProgress, setImageUploadProgress] = useState<{ done: number; total: number } | null>(null)
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
@@ -230,7 +233,9 @@ export function PostEditor({ initialData }: PostEditorProps) {
         formData.append("wp_image", initialData.acf.wp_image.toString())
       }
 
-      // Append images with compression
+      // Compress and upload photos one request each (limited concurrency).
+      // Sending them all inside the post request would hit the serverless
+      // request-body cap (~4.5MB), which capped a post at roughly a dozen photos.
       const compressionOptions = {
         maxSizeMB: 0.3, // Aim for roughly 300KB per uploaded image
         maxWidthOrHeight: 1920,
@@ -242,20 +247,40 @@ export function PostEditor({ initialData }: PostEditorProps) {
         ? (await import('browser-image-compression')).default
         : null;
 
-      // Compress selected images in parallel. The previous sequential loop made
-      // a multi-photo post wait for every image before even starting the upload.
-      const compressedImages = await Promise.all(previewImages.map(async (img) => {
-        try {
-          return await imageCompression!(img.file, compressionOptions);
-        } catch (error) {
-          console.error("Compression failed:", error);
-          // Keep the post usable even when a device cannot compress one image.
-          return img.file;
+      const uploadedImages: ({ id: number; url: string } | null)[] = new Array(previewImages.length).fill(null)
+      if (previewImages.length > 0) {
+        setImageUploadProgress({ done: 0, total: previewImages.length })
+        let next = 0
+        const worker = async () => {
+          while (next < previewImages.length) {
+            const index = next++
+            const img = previewImages[index]
+            let file: File | Blob = img.file
+            try {
+              file = await imageCompression!(img.file, compressionOptions)
+            } catch (error) {
+              console.error("Compression failed:", error)
+              // Keep the post usable even when a device cannot compress one image.
+            }
+            const fd = new FormData()
+            fd.append("file", file, img.file.name)
+            fd.append("title", values.title)
+            const res = await fetch("/api/media", { method: "POST", body: fd })
+            let body: { success?: boolean; id?: number; url?: string; error?: string } | null = null
+            try { body = await res.json() } catch { }
+            if (!res.ok || !body?.success) {
+              throw new Error(body?.error || `写真のアップロードに失敗しました (${img.file.name}: ${res.status})`)
+            }
+            uploadedImages[index] = { id: body.id as number, url: body.url as string }
+            setImageUploadProgress(p => p ? { ...p, done: p.done + 1 } : p)
+          }
         }
-      }));
-      compressedImages.forEach((file, index) => {
-        formData.append("images", file, previewImages[index].file.name);
-      });
+        // 3 parallel uploads keeps the total time low without flooding WordPress
+        await Promise.all(Array.from({ length: Math.min(3, previewImages.length) }, worker))
+        setImageUploadProgress(null)
+      }
+      // Order preserved so the first selected photo stays the featured image
+      formData.append("uploadedImages", JSON.stringify(uploadedImages.filter(Boolean)))
 
       const url = initialData ? `/api/posts/${initialData.id}` : "/api/posts"
 
@@ -290,6 +315,7 @@ export function PostEditor({ initialData }: PostEditorProps) {
       alert(`Error: ${error.message}`)
     } finally {
       setIsLoading(false)
+      setImageUploadProgress(null)
     }
   }
 
@@ -452,7 +478,9 @@ export function PostEditor({ initialData }: PostEditorProps) {
                   ) : isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {initialData ? "更新中..." : "公開中..."}
+                      {imageUploadProgress
+                        ? `写真をアップロード中… ${imageUploadProgress.done}/${imageUploadProgress.total}`
+                        : initialData ? "更新中..." : "公開中..."}
                     </>
                   ) : (
                     initialData ? "投稿を更新" : "投稿を公開"

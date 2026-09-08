@@ -107,7 +107,7 @@ export function GalleryGrid({ items, onSelect, showMonthHeadings = true }: Galle
     }, [items, showMonthHeadings]);
 
     return (
-        <section className="py-24 px-4 bg-background">
+        <section className="bg-background">
             <div className="container mx-auto max-w-4xl">
                 <div className="space-y-14">
                     {displayGroups.map((group) => (
@@ -117,7 +117,7 @@ export function GalleryGrid({ items, onSelect, showMonthHeadings = true }: Galle
                                     {new Date(`${group.month}-01`).toLocaleString('en-US', { year: 'numeric', month: 'long' })}
                                 </h3>
                             )}
-                            <div className="columns-3 gap-2 space-y-2 sm:columns-2 sm:gap-4 sm:space-y-4 lg:columns-3">
+                            <div className="columns-3 gap-1.5 space-y-1.5 sm:columns-2 sm:gap-4 sm:space-y-4 lg:columns-3">
                                 {group.items.map((item, index) => (
                                     <GalleryCard key={item.id} item={item} index={index} onSelect={onSelect} />
                                 ))}
