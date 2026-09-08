@@ -21,6 +21,9 @@ export async function proxy(request: NextRequest) {
 
     // The image optimizer proxies the (private) WordPress originals, so it must
     // not be an anonymous way to fetch family photos by URL.
+    // NOTE: effective when self-hosting only. On Vercel, /_next/image is served
+    // by the platform's image optimization layer before middleware runs
+    // (verified 2026-09-08: an uncached size returned 200 without a cookie).
     if (pathname.startsWith("/_next/image")) {
         const ok = await verifySessionToken(request.cookies.get("auth")?.value);
         return ok ? NextResponse.next() : new NextResponse(null, { status: 401 });
